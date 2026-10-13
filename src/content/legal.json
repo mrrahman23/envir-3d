@@ -1,0 +1,142 @@
+{
+ "personvern": {
+  "title": "Personvernerklæring",
+  "updated": "Sist oppdatert: 2. juli 2026",
+  "blocks": [
+   {
+    "t": "p",
+    "v": "Denne siden er vedlikeholdt av Envir AS og forklarer hvordan vi behandler personopplysninger når du bruker nettsiden vår og våre tjenester. Vi følger personopplysningsloven og GDPR."
+   },
+   {
+    "t": "h",
+    "v": "1. Behandlingsansvarlig"
+   },
+   {
+    "t": "p",
+    "v": "Envir AS (org.nr. 918 320 706), Sjøkrigsskoleveien 15, 5165 Laksevåg, er behandlingsansvarlig for personopplysningene som samles inn via envir.com."
+   },
+   {
+    "t": "p",
+    "v": "Kontakt: post@envir.com, +47 55 200 400."
+   },
+   {
+    "t": "h",
+    "v": "2. Hvilke opplysninger vi samler inn"
+   },
+   {
+    "t": "p",
+    "v": "Vi behandler kun opplysninger som er nødvendige for å levere våre tjenester og drifte nettsiden: navn, firma, e-post, telefonnummer og annen informasjon du selv oppgir i kontaktskjema eller ved bestilling."
+   },
+   {
+    "t": "p",
+    "v": "I tillegg logger vi teknisk informasjon som IP-adresse, nettlesertype og besøksstatistikk via informasjonskapsler (se avsnitt 5)."
+   },
+   {
+    "t": "h",
+    "v": "3. Formål og rettslig grunnlag"
+   },
+   {
+    "t": "p",
+    "v": "Opplysningene brukes til å besvare henvendelser, håndtere bestillinger og leveranser, samt forbedre nettsiden. Rettslig grunnlag er avtale (GDPR art. 6(1)(b)) eller berettiget interesse (art. 6(1)(f)). For markedsføring innhenter vi samtykke (art. 6(1)(a))."
+   },
+   {
+    "t": "h",
+    "v": "4. Deling og lagring"
+   },
+   {
+    "t": "p",
+    "v": "Vi deler ikke personopplysninger med tredjeparter ut over det som er nødvendig for å levere tjenesten, oppfylle lovpålagte krav eller våre databehandlere (f.eks. drift av nettside og e-post). Data lagres ikke lenger enn nødvendig for formålet."
+   },
+   {
+    "t": "h",
+    "v": "5. Informasjonskapsler (cookies)"
+   },
+   {
+    "t": "p",
+    "v": "Nettsiden bruker nødvendige informasjonskapsler for å fungere, og valgfrie kapsler for statistikk. Du kan velge hvilke som skal aktiveres i vår samtykkeboks, og du kan når som helst trekke tilbake samtykket ved å tømme nettleserens data."
+   },
+   {
+    "t": "h",
+    "v": "6. Dine rettigheter"
+   },
+   {
+    "t": "p",
+    "v": "Du har rett til innsyn, retting, sletting og dataportabilitet, samt rett til å protestere mot behandlingen. Henvendelser sendes til post@envir.com. Du kan også klage til Datatilsynet."
+   },
+   {
+    "t": "h",
+    "v": "7. Sikkerhet"
+   },
+   {
+    "t": "p",
+    "v": "Vi bruker tekniske og organisatoriske tiltak for å beskytte personopplysninger mot uautorisert tilgang, endring eller sletting."
+   }
+  ]
+ },
+ "vilkar": {
+  "title": "Brukervilkår",
+  "updated": "Sist oppdatert: 2. juli 2026",
+  "blocks": [
+   {
+    "t": "p",
+    "v": "Disse vilkårene gjelder for bruk av nettsiden envir.com. Ved å bruke siden aksepterer du vilkårene. For salg og mottak av masser gjelder egne salgs- og mottaksbetingelser."
+   },
+   {
+    "t": "h",
+    "v": "1. Om nettsiden"
+   },
+   {
+    "t": "p",
+    "v": "Nettsiden eies og drives av Envir AS (org.nr. 918 320 706). Innholdet er ment å informere om selskapets tjenester og produkter."
+   },
+   {
+    "t": "h",
+    "v": "2. Immaterielle rettigheter"
+   },
+   {
+    "t": "p",
+    "v": "Alt innhold – tekst, bilder, grafikk, logo og videoer – tilhører Envir AS eller våre lisensgivere og er beskyttet av opphavsrett. Innholdet kan ikke gjenbrukes uten skriftlig samtykke."
+   },
+   {
+    "t": "h",
+    "v": "3. Bruk av nettsiden"
+   },
+   {
+    "t": "p",
+    "v": "Du forplikter deg til å bruke siden i tråd med gjeldende lovgivning. Det er ikke tillatt å forsøke å skaffe uautorisert tilgang, spre skadelig kode eller belaste tjenesten unødig."
+   },
+   {
+    "t": "h",
+    "v": "4. Ansvarsfraskrivelse"
+   },
+   {
+    "t": "p",
+    "v": "Innholdet leveres «som det er». Envir gjør sitt beste for at informasjonen skal være korrekt og oppdatert, men gir ingen garantier for fullstendighet eller nøyaktighet. Envir er ikke ansvarlig for direkte eller indirekte tap som følge av bruk av siden."
+   },
+   {
+    "t": "h",
+    "v": "5. Lenker til tredjeparter"
+   },
+   {
+    "t": "p",
+    "v": "Siden kan inneholde lenker til eksterne nettsteder. Envir er ikke ansvarlig for innhold eller praksis hos disse."
+   },
+   {
+    "t": "h",
+    "v": "6. Endringer"
+   },
+   {
+    "t": "p",
+    "v": "Vi kan endre disse vilkårene ved behov. Oppdatert versjon publiseres på denne siden."
+   },
+   {
+    "t": "h",
+    "v": "7. Lovvalg og verneting"
+   },
+   {
+    "t": "p",
+    "v": "Vilkårene reguleres av norsk rett. Tvister skal søkes løst i minnelighet, og eventuelle rettstvister avgjøres ved Hordaland tingrett."
+   }
+  ]
+ }
+}
