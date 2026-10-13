@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Image from "next/image";
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useDeferredValue, useRef, useState, useSyncExternalStore } from "react";
 import { facilityZones, type FacilityZoneId } from "@/content/site";
 import SceneFrame from "@/components/three/SceneFrame";
 import { canRender3D, useQuality } from "@/lib/quality";
@@ -40,6 +40,10 @@ export default function Facility() {
     () => window.matchMedia("(hover: hover) and (pointer: fine)").matches,
     () => false,
   );
+  // The 3D scene follows the selection in a deferred, interruptible render: the list,
+  // counter and info panel paint immediately (keeps interaction latency low on phones).
+  const sceneActive = useDeferredValue(active);
+  const scenePreview = useDeferredValue(preview);
   const index = active ? ORDER.indexOf(active) : -1;
   const zone = active ? facilityZones[index] : null;
   const show3D = canRender3D(quality) && !staticView;
@@ -97,7 +101,7 @@ export default function Facility() {
                   camera={{ fov: 32, position: [0, 9.5, 12.5] }}
                   poster={<Image src="/assets/posters/facility.webp" alt="" fill sizes="(min-width:1024px) 70vw, 100vw" quality={80} className="object-cover" />}
                 >
-                  {(ctx) => <FacilityScene {...ctx} active={active} preview={preview} onSelect={setActive} controls={finePointer} labels={LABELS} />}
+                  {(ctx) => <FacilityScene {...ctx} active={sceneActive} preview={scenePreview} onSelect={setActive} controls={finePointer} labels={LABELS} />}
                 </SceneFrame>
               ) : (
                 <div className="aspect-[4/3] w-full bg-[#0b2622] sm:aspect-[16/10]">

@@ -35,6 +35,7 @@ export default function ScreenLabel({ position, text, badge, className = "", bad
   const group = useRef<THREE.Group>(null);
   const world = useMemo(() => new THREE.Vector3(), []);
   const ndc = useMemo(() => new THREE.Vector3(), []);
+  const last = useRef({ t: "", o: "" });
   const handlers = useRef({ onClick, onHover });
   useLayoutEffect(() => {
     handlers.current = { onClick, onHover };
@@ -90,9 +91,14 @@ export default function ScreenLabel({ position, text, badge, className = "", bad
     const x = ((ndc.x + 1) / 2) * size.width;
     const y = ((1 - ndc.y) / 2) * size.height;
     const s = distanceScale ? THREE.MathUtils.clamp(distanceScale / dist, 0.45, 1.6) : 1;
-    parts.el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) translate(-50%, -50%) scale(${s.toFixed(3)})`;
-    parts.el.style.opacity = opacity.toFixed(2);
-    parts.el.style.visibility = opacity < 0.02 ? "hidden" : "visible";
+    // Only touch the DOM when something changed (avoids style recalcs on idle frames).
+    const transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) translate(-50%, -50%) scale(${s.toFixed(3)})`;
+    const op = opacity.toFixed(2);
+    if (last.current.t !== transform) parts.el.style.transform = last.current.t = transform;
+    if (last.current.o !== op) {
+      parts.el.style.opacity = last.current.o = op;
+      parts.el.style.visibility = opacity < 0.02 ? "hidden" : "visible";
+    }
   });
 
   return <group ref={group} position={position} />;

@@ -2,7 +2,7 @@
 
 import { Environment, Lightformer } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { forwardRef, useLayoutEffect, useMemo, useRef } from "react";
+import { forwardRef, memo, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { fbm, mulberry32 } from "./noise";
 import { beltTexture, corrugatedTexture, grainTexture, pbrTexture, STRATA_ASPECT, strataTextures } from "./textures";
@@ -11,7 +11,13 @@ import { beltTexture, corrugatedTexture, grainTexture, pbrTexture, STRATA_ASPECT
 /* Lighting                                                            */
 /* ------------------------------------------------------------------ */
 
-export function StudioLights({ intensity = 1, warm = "#ffe2bd", cool = "#7fc6ff", shadows = false, envIntensity = 0.7, env = true }) {
+/**
+ * Memoised: drei <Environment> re-bakes its cube map + PMREM whenever its children
+ * change, and inline <Lightformer> children are new on every parent render. Without
+ * memo every UI state change (zone, fraction) re-baked the lighting: a 130–260 ms
+ * main-thread task at 4× CPU that pushed interaction latency over 200 ms.
+ */
+export const StudioLights = memo(function StudioLights({ intensity = 1, warm = "#ffe2bd", cool = "#7fc6ff", shadows = false, envIntensity = 0.7, env = true }: { intensity?: number; warm?: string; cool?: string; shadows?: boolean; envIntensity?: number; env?: boolean }) {
   return (
     <>
       <hemisphereLight args={["#a9cfdc", "#2a1e14", 0.55 * intensity]} />
@@ -40,7 +46,7 @@ export function StudioLights({ intensity = 1, warm = "#ffe2bd", cool = "#7fc6ff"
       )}
     </>
   );
-}
+});
 
 /* ------------------------------------------------------------------ */
 /* Shaders                                                             */
@@ -726,27 +732,41 @@ export function Ship({ position = [0, 0, 0] as V3, rotation = 0, scale = 1 }) {
   );
 }
 
-/** Calm fjord water with a subtle animated sheen. */
+/**
+ * Calm fjord water. Waves are displaced in the vertex shader (with analytic normals),
+ * so the CPU does no per-frame geometry work — this used to recompute ~2k vertices
+ * and all normals every frame, which dominated interaction latency on phones.
+ */
 export function Water({ size = [20, 10] as [number, number], position = [0, -0.05, 0] as V3, color = "#0d2f36" }) {
-  const mat = useRef<THREE.MeshStandardMaterial>(null);
   const geo = useMemo(() => new THREE.PlaneGeometry(size[0], size[1], 64, 32).rotateX(-Math.PI / 2), [size]);
-  const base = useMemo(() => Float32Array.from((geo.attributes.position as THREE.BufferAttribute).array), [geo]);
-  useFrame(({ clock }) => {
-    const t = clock.elapsedTime;
-    const pos = geo.attributes.position as THREE.BufferAttribute;
-    for (let i = 0; i < pos.count; i++) {
-      const x = base[i * 3];
-      const z = base[i * 3 + 2];
-      pos.setY(i, Math.sin(x * 1.3 + t * 0.8) * 0.012 + Math.cos(z * 1.7 + t * 0.6) * 0.01);
-    }
-    pos.needsUpdate = true;
-    geo.computeVertexNormals();
+  const uniforms = useMemo(() => ({ uTime: { value: 0 } }), []);
+  const mat = useMemo(() => {
+    const m = new THREE.MeshStandardMaterial({ color, roughness: 0.12, metalness: 0.35 });
+    m.onBeforeCompile = (shader) => {
+      shader.uniforms.uTime = uniforms.uTime;
+      shader.vertexShader = shader.vertexShader
+        .replace("#include <common>", "#include <common>\nuniform float uTime;")
+        .replace(
+          "#include <beginnormal_vertex>",
+          `float wa = position.x * 1.3 + uTime * 0.8;
+           float wb = position.z * 1.7 + uTime * 0.6;
+           vec3 objectNormal = normalize(vec3(-0.0156 * cos(wa), 1.0, 0.017 * sin(wb)));
+           #ifdef USE_TANGENT
+             vec3 objectTangent = vec3(tangent.xyz);
+           #endif`,
+        )
+        .replace("#include <begin_vertex>", "vec3 transformed = vec3(position);\ntransformed.y += sin(wa) * 0.012 + cos(wb) * 0.01;");
+    };
+    return m;
+  }, [color, uniforms]);
+  useFrame((_, dt) => {
+    uniforms.uTime.value += dt;
   });
-  return (
-    <mesh geometry={geo} position={position} receiveShadow>
-      <meshStandardMaterial ref={mat} color={color} roughness={0.12} metalness={0.35} />
-    </mesh>
-  );
+  useLayoutEffect(() => () => {
+    geo.dispose();
+    mat.dispose();
+  }, [geo, mat]);
+  return <mesh geometry={geo} material={mat} position={position} receiveShadow />;
 }
 
 /** Cutaway wash drum with tumbling material. */

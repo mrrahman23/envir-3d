@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Image from "next/image";
-import { useState } from "react";
+import { useDeferredValue, useState } from "react";
 import { priceNote, products, services } from "@/content/site";
 import SceneFrame from "@/components/three/SceneFrame";
 import { ButtonLink, Eyebrow } from "@/components/ui";
@@ -26,6 +26,8 @@ function Poster({ src, alt, dim = true }: { src: string; alt: string; dim?: bool
 
 export default function Services() {
   const [fraction, setFraction] = useState(3);
+  // Carousel rotation follows in a deferred render; the selected chip and price card update first.
+  const sceneFraction = useDeferredValue(fraction);
   const product = products.find((p) => p.id === CAROUSEL[fraction])!;
   const [a, b, c, d] = services;
 
@@ -71,7 +73,7 @@ export default function Services() {
                   alwaysRender
                   poster={<div className="absolute inset-0 flex items-center justify-center"><Image src={`/assets/materials/renders/${product.id}.webp`} alt="" width={800} height={600} sizes="40vw" quality={80} className="w-[62%]" /></div>}
                 >
-                  {(ctx) => <Materials {...ctx} selected={fraction} />}
+                  {(ctx) => <Materials {...ctx} selected={sceneFraction} />}
                 </SceneFrame>
               </div>
             }

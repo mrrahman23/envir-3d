@@ -2,7 +2,7 @@
 
 import { OrbitControls } from "@react-three/drei";
 import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import * as THREE from "three";
 import type { FacilityZoneId } from "@/content/site";
 import type { Quality } from "@/lib/quality";
@@ -68,13 +68,12 @@ function Zone({
     const pulse = 0.82 + Math.sin(clock.elapsedTime * 2.6) * 0.18;
     const rm = ring.current?.material as THREE.MeshBasicMaterial | undefined;
     if (rm && ring.current) {
+      // Stays "visible" at opacity 0 so warm-up compiles its shader before the first tap.
       rm.opacity = THREE.MathUtils.damp(rm.opacity, (active ? 0.9 : hovered ? 0.55 : 0) * pulse, 8, dt);
-      ring.current.visible = rm.opacity > 0.01;
     }
     const bm = beam.current?.material as THREE.MeshBasicMaterial | undefined;
     if (bm && beam.current) {
       bm.opacity = THREE.MathUtils.damp(bm.opacity, active ? 0.13 : hovered ? 0.07 : 0, 6, dt);
-      beam.current.visible = bm.opacity > 0.005;
     }
   });
   const pos = ZONE_POS[id];
@@ -97,12 +96,12 @@ function Zone({
       }}
     >
       {children}
-      <mesh ref={ring} rotation-x={-Math.PI / 2} position={[0, 0.02, 0]} visible={false}>
+      <mesh ref={ring} rotation-x={-Math.PI / 2} position={[0, 0.02, 0]}>
         <ringGeometry args={[r * 0.9, r, 72]} />
         <meshBasicMaterial color="#b9d95a" transparent opacity={0} depthWrite={false} toneMapped={false} />
       </mesh>
       {/* Soft light column: readable highlight even when the zone is partly occluded */}
-      <mesh ref={beam} position={[0, 1.1, 0]} visible={false}>
+      <mesh ref={beam} position={[0, 1.1, 0]}>
         <cylinderGeometry args={[r * 0.9, r * 0.9, 2.2, 48, 1, true]} />
         <meshBasicMaterial color="#b9d95a" alphaMap={beamTexture()} transparent opacity={0} depthWrite={false} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} toneMapped={false} />
       </mesh>
@@ -140,7 +139,7 @@ const VIEW_DIR = new THREE.Vector3(0.12, 0.62, 0.78).normalize();
 // Wider portrait canvases need more distance to keep the zone in context.
 const zoneDistance = (id: FacilityZoneId, aspect: number) => (5.6 + ZONE_RADIUS[id] * 2.3) * (aspect < 1.2 ? 1.3 : 1);
 
-export default function FacilityScene({
+function FacilityScene({
   quality,
   reducedMotion,
   active,
@@ -216,21 +215,11 @@ export default function FacilityScene({
   });
 
   const landHeight = () => 0;
-  const zoneProps = (id: FacilityZoneId) => ({
-    id,
-    index: ids.indexOf(id),
-    label: labels[id],
-    active: active === id,
-    hovered: hovered === id || preview === id,
-    onHover: setHovered,
-    onSelect,
-  });
-
-  return (
-    <>
-      <fog attach="fog" args={["#0b2622", 16, 34]} />
-      <StudioLights env={quality !== "low"} intensity={0.95} shadows={quality === "high"} envIntensity={0.6} />
-
+  // Static scenery and zone geometry are memoised: selecting a zone only changes
+  // highlight state, so React skips re-reconciling ~200 scene elements (INP).
+  const staticSite = useMemo(
+    () => (
+      <>
       {/* Land + fjord */}
       <mesh rotation-x={-Math.PI / 2} position={[0, 0, -1.2]} receiveShadow>
         <planeGeometry args={[16, 8]} />
@@ -259,9 +248,15 @@ export default function FacilityScene({
         <boxGeometry args={[16, 0.16, 0.2]} />
         <meshStandardMaterial color="#8f918b" roughness={0.8} />
       </mesh>
-
-      {/* 1 · Massemottak */}
-      <Zone {...zoneProps("mottak")}>
+      </>
+    ),
+     
+    [k],
+  );
+  const content = useMemo(
+    () => ({
+      mottak: (
+        <>
         <mesh position={[0.4, 0.02, 0.7]}>
           <boxGeometry args={[1.3, 0.04, 0.5]} />
           <meshStandardMaterial color="#383c3b" metalness={0.5} roughness={0.5} />
@@ -269,10 +264,10 @@ export default function FacilityScene({
         <Truck position={[0.3, 0.04, 0.7]} rotation={0} scale={1.1} />
         <Pile position={[-0.4, 0, -0.4]} r={0.75} h={0.5} color="#4a3627" seed={21} />
         <Pile position={[0.55, 0, -0.5]} r={0.5} h={0.35} color="#5a4431" seed={22} />
-      </Zone>
-
-      {/* 2 · Jordvaskeanlegg — cutaway hall */}
-      <Zone {...zoneProps("vask")}>
+        </>
+      ),
+      vask: (
+        <>
         <mesh position={[0, 0.8, -1.25]}>
           <boxGeometry args={[4.6, 1.6, 0.06]} />
           <meshStandardMaterial color="#b6b8b2" roughness={0.7} metalness={0.2} />
@@ -308,10 +303,10 @@ export default function FacilityScene({
         <Pile position={[-0.8, 0, 0.75]} r={0.45} h={0.38} color="#c8b089" seed={25} />
         <Pile position={[0.3, 0, 0.85]} r={0.4} h={0.32} color="#9a958c" seed={26} />
         <Steam position={[1.4, 1.9, -0.8]} count={Math.round(30 * k)} />
-      </Zone>
-
-      {/* 3 · Jorddampeanlegg */}
-      <Zone {...zoneProps("damp")}>
+        </>
+      ),
+      damp: (
+        <>
         <Hall size={[1.2, 0.55, 0.8]} color="#d0d2cb" />
         <mesh position={[0.4, 0.85, -0.15]}>
           <cylinderGeometry args={[0.06, 0.07, 0.7, 16]} />
@@ -319,10 +314,10 @@ export default function FacilityScene({
         </mesh>
         {!reducedMotion && <Steam position={[0.4, 2.2, -0.15]} count={Math.round(60 * k) + 10} />}
         <Pile position={[-0.75, 0, 0.6]} r={0.35} h={0.25} color="#3d2c20" seed={27} />
-      </Zone>
-
-      {/* 4 · Gjenvunne masser */}
-      <Zone {...zoneProps("lager")}>
+        </>
+      ),
+      lager: (
+        <>
         {[
           { p: [-0.7, 0, -0.5] as V3, c: "#cdb48a" },
           { p: [0.45, 0, -0.6] as V3, c: "#a19d94" },
@@ -337,10 +332,10 @@ export default function FacilityScene({
             <meshStandardMaterial color="#8d908a" roughness={0.8} />
           </mesh>
         ))}
-      </Zone>
-
-      {/* 5 · Laboratorium — the old hydraulics hall */}
-      <Zone {...zoneProps("lab")}>
+        </>
+      ),
+      lab: (
+        <>
         <Hall size={[1.2, 0.6, 0.85]} color="#8e4b38" roof="#3a3634" />
         {[-0.36, -0.12, 0.12, 0.36].map((x) => (
           <mesh key={x} position={[x, 0.38, 0.43]}>
@@ -348,10 +343,10 @@ export default function FacilityScene({
             <meshStandardMaterial color="#f6e7b8" emissive="#f6e7b8" emissiveIntensity={0.9} />
           </mesh>
         ))}
-      </Zone>
-
-      {/* 6 · ISPS-kai */}
-      <Zone {...zoneProps("kai")}>
+        </>
+      ),
+      kai: (
+        <>
         {[-1.6, -0.5, 0.6, 1.7].map((x) => (
           <mesh key={x} position={[x, 0.07, 0.0]}>
             <cylinderGeometry args={[0.04, 0.05, 0.1, 10]} />
@@ -360,7 +355,48 @@ export default function FacilityScene({
         ))}
         <Ship position={[0.1, -0.02, 0.65]} rotation={0} scale={1.2} />
         <Conveyor from={[1.6, 0.06, -0.8]} to={[0.9, 0.55, 0.45]} width={0.08} />
-      </Zone>
+        </>
+      ),
+    }),
+     
+    [k, reducedMotion],
+  );
+
+
+  const zoneProps = (id: FacilityZoneId) => ({
+    id,
+    index: ids.indexOf(id),
+    label: labels[id],
+    active: active === id,
+    hovered: hovered === id || preview === id,
+    onHover: setHovered,
+    onSelect,
+  });
+
+  return (
+    <>
+      <fog attach="fog" args={["#0b2622", 16, 34]} />
+      <StudioLights env={quality !== "low"} intensity={0.95} shadows={quality === "high"} envIntensity={0.6} />
+
+      {staticSite}
+
+      {/* 1 · Massemottak */}
+      <Zone {...zoneProps("mottak")}>{content.mottak}</Zone>
+
+      {/* 2 · Jordvaskeanlegg — cutaway hall */}
+      <Zone {...zoneProps("vask")}>{content.vask}</Zone>
+
+      {/* 3 · Jorddampeanlegg */}
+      <Zone {...zoneProps("damp")}>{content.damp}</Zone>
+
+      {/* 4 · Gjenvunne masser */}
+      <Zone {...zoneProps("lager")}>{content.lager}</Zone>
+
+      {/* 5 · Laboratorium — the old hydraulics hall */}
+      <Zone {...zoneProps("lab")}>{content.lab}</Zone>
+
+      {/* 6 · ISPS-kai */}
+      <Zone {...zoneProps("kai")}>{content.kai}</Zone>
 
       {controls && (
         <OrbitControls
@@ -380,3 +416,6 @@ export default function FacilityScene({
     </>
   );
 }
+
+// Memoised so urgent UI renders (labels, panel) skip the 3D tree; it updates via deferred props.
+export default memo(FacilityScene);

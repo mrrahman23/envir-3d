@@ -61,11 +61,13 @@ export default function KontaktPage() {
                 { i: "pin" as const, l: "Adresse", v: `${company.address}, ${company.postal}`, href: company.mapsUrl },
                 { i: "clock" as const, l: "Åpningstider", v: "Man–Fre 07:00–16:00" },
               ].map((x) => (
-                <div key={x.l} className="flex gap-4">
-                  <Icon name={x.i} className="mt-1 h-5 w-5 text-emerald-700" />
-                  <div>
-                    <dt className="text-sm text-graphite/70">{x.l}</dt>
-                    <dd className="text-lg font-semibold text-forest-950">
+                // dt/dd must be direct children of the group div; the icon lives inside dt.
+                <div key={x.l} className="grid grid-cols-[1.25rem_1fr] gap-x-4">
+                  <dt className="contents">
+                    <Icon name={x.i} className="row-span-2 mt-1 h-5 w-5 text-emerald-700" />
+                    <span className="text-sm text-graphite/70">{x.l}</span>
+                  </dt>
+                  <dd className="col-start-2 text-lg font-semibold text-forest-950">
                       {x.href ? (
                         <a href={x.href} className="hover:underline" {...(x.href.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
                           {x.v}
@@ -73,8 +75,7 @@ export default function KontaktPage() {
                       ) : (
                         x.v
                       )}
-                    </dd>
-                  </div>
+                  </dd>
                 </div>
               ))}
             </dl>

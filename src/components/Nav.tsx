@@ -29,6 +29,11 @@ export default function Nav() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // The mobile menu covers the whole viewport: pause every 3D render loop underneath.
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("envir:overlay", { detail: { open } }));
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;

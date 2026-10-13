@@ -168,13 +168,13 @@ function ScrollStory() {
               </li>
             ))}
           </ol>
-          <a href="#anlegget" className={`hidden shrink-0 pb-2 text-xs font-medium underline underline-offset-4 md:block ${bright ? "text-forest-950/70" : "text-white/60"} hover:opacity-100`}>
+          <a
+            href="#anlegget"
+            className={`shrink-0 pb-2 text-xs font-medium underline underline-offset-4 max-md:sr-only max-md:focus:not-sr-only max-md:focus:fixed max-md:focus:left-4 max-md:focus:top-[calc(var(--nav-h)+12px)] max-md:focus:z-20 max-md:focus:rounded-full max-md:focus:bg-lime max-md:focus:px-4 max-md:focus:py-2 max-md:focus:text-forest-950 max-md:focus:no-underline ${bright ? "text-forest-950/70" : "text-white/60"} hover:opacity-100`}
+          >
             Hopp over animasjonen
           </a>
         </nav>
-        <a href="#anlegget" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-[calc(var(--nav-h)+12px)] focus:z-20 focus:rounded-full focus:bg-lime focus:px-4 focus:py-2 focus:text-forest-950">
-          Hopp over animasjonen
-        </a>
         <p className={`absolute left-4 right-4 top-[calc(var(--nav-h)+12px)] text-right text-[0.62rem] uppercase tracking-[0.16em] transition-colors duration-500 sm:left-auto sm:right-6 sm:text-[0.68rem] lg:right-10 ${bright ? "text-forest/70" : "text-white/55"}`}>
           Kunstnerisk visualisering – ikke opptak fra anlegget
         </p>

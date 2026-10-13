@@ -1,7 +1,7 @@
 "use client";
 
 import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { memo, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { Quality } from "@/lib/quality";
 import { tierScale } from "@/lib/quality";
@@ -118,7 +118,7 @@ const SAMPLES: FractionId[] = ["0-2", "2-8", "8-16", "16-32", "32-64", "64-90"];
 
 export const SAMPLE_IDS = SAMPLES;
 
-export function MaterialsScene({ quality, reducedMotion, selected }: P & { selected: number }) {
+export const MaterialsScene = memo(function MaterialsScene({ quality, reducedMotion, selected }: P & { selected: number }) {
   const k = tierScale(quality);
   const group = useRef<THREE.Group>(null);
   const spinners = useRef<(THREE.Group | null)[]>([]);
@@ -164,7 +164,7 @@ export function MaterialsScene({ quality, reducedMotion, selected }: P & { selec
       </group>
     </>
   );
-}
+});
 
 /* C — Jordbehandling: cutaway wash process. */
 export function WashScene({ quality, reducedMotion }: P) {

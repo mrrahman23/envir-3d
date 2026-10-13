@@ -258,3 +258,11 @@ body {
 .hero-rise {
   animation: hero-rise 1.2s var(--ease-cine) both;
 }
+
+/* Keyboard users must never focus content that is still fading in. */
+.js [data-reveal]:focus-within,
+.js [data-reveal]:focus-visible {
+  opacity: 1;
+  transform: none;
+  transition-duration: 0s;
+}

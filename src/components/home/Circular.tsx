@@ -118,6 +118,9 @@ export default function Circular() {
 
             <div className="mt-8">
               <h3 className="text-sm font-semibold text-forest-950">LCA av Envirs jordvaskeprosess</h3>
+              <p className="mt-1 text-[0.8rem] leading-snug text-graphite/70">
+                Reduksjon i klimagassutslipp. NORSUS, april 2026 · ISO 14040/14044 og EN 15804 · fra graving på byggeplass til gjenvunne masser lastet for utkjøring – transport videre er ikke inkludert. Tre separate sammenligninger, ikke en samlet besparelse.
+              </p>
               <ul className="mt-4 grid gap-3 sm:grid-cols-3">
                 {sustainability.lca.map((l) => (
                   <li key={l.v} className="rounded-2xl border border-forest/10 bg-white/60 p-5">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { company, metrics, sustainability } from "@/content/site";
+import { metrics } from "@/content/site";
 import { Eyebrow } from "@/components/ui";
 
 const nf = new Intl.NumberFormat("nb-NO");
@@ -131,30 +131,13 @@ export default function Impact() {
           </article>
         </div>
 
-        {/* Documented climate effect — kept apart from operational figures, with method and source */}
-        <div className="mt-6 grid gap-px overflow-hidden rounded-[28px] border border-white/10 bg-white/10 lg:grid-cols-[1.1fr_repeat(3,1fr)]">
-          <div className="bg-night p-7 sm:p-10">
-            <p className="eyebrow text-lime">Livsløpsanalyse (LCA)</p>
-            <p className="mt-4 text-[0.95rem] leading-relaxed text-white/70">
-              Reduksjon i klimagassutslipp (kg CO₂-ekv.) for Envirs jordvaskeprosess, sammenlignet med deponering og jomfruelige materialer.
-            </p>
-            <Source>
-              NORSUS, april 2026 · ISO 14040/14044 og EN 15804 · transport fra anlegget er ikke inkludert ·{" "}
-              <a href={company.docs.lca} className="underline underline-offset-2 hover:text-white">
-                LCA-rapporten (PDF)
-              </a>
-            </Source>
-          </div>
-          {sustainability.lca.map((l) => (
-            <div key={l.v} className="bg-night p-7 sm:p-10">
-              <p className="display text-[clamp(2.6rem,4vw,3.6rem)] leading-none text-white">
-                −{l.v}
-                <span className="ml-1 text-[0.5em] text-white/60">%</span>
-              </p>
-              <p className="mt-4 text-[0.92rem] leading-snug text-white/70">{l.short}</p>
-            </div>
-          ))}
-        </div>
+        <p className="mt-6 text-sm text-white/60">
+          Klimaeffekten av gjenvinningen er dokumentert i en egen livsløpsanalyse – se{" "}
+          <a href="#baerekraft" className="underline underline-offset-2 hover:text-white">
+            Bærekraft
+          </a>
+          .
+        </p>
       </div>
     </section>
   );

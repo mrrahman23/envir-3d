@@ -40,6 +40,41 @@ type Props = {
   alwaysRender?: boolean;
 };
 
+// Input-aware scheduling: booting a scene (Three.js parse, scene build) is a long task,
+// so it waits for a quiet moment instead of landing in front of a tap (INP).
+let lastInput = 0;
+if (typeof window !== "undefined") {
+  const mark = () => (lastInput = performance.now());
+  for (const t of ["pointerdown", "keydown", "wheel", "touchstart"]) window.addEventListener(t, mark, { passive: true, capture: true });
+}
+const QUIET_MS = 700;
+/** Runs `cb` in idle time once there has been no user input for QUIET_MS. Returns a canceller. */
+const idle = (cb: () => void): (() => void) => {
+  let cancelled = false;
+  let ric = 0;
+  let timer = 0;
+  const run = () => {
+    if (cancelled) return;
+    const since = performance.now() - lastInput;
+    if (since < QUIET_MS) {
+      timer = window.setTimeout(schedule, QUIET_MS - since);
+      return;
+    }
+    cb();
+  };
+  function schedule() {
+    if (cancelled) return;
+    if (window.requestIdleCallback) ric = window.requestIdleCallback(run, { timeout: 1500 });
+    else timer = window.setTimeout(run, 60);
+  }
+  schedule();
+  return () => {
+    cancelled = true;
+    if (ric) window.cancelIdleCallback?.(ric);
+    window.clearTimeout(timer);
+  };
+};
+
 export default function SceneFrame({ poster, children, className = "", eager, camera, label, background = "#07181a", interactive, shadows, transparent, alwaysRender }: Props) {
   const { quality, reducedMotion } = useQuality();
   const wrap = useRef<HTMLDivElement>(null);
@@ -48,10 +83,18 @@ export default function SceneFrame({ poster, children, className = "", eager, ca
   // roots that must unmount through R3F), then the canvas itself a moment later.
   const [content, setContent] = useState(false);
   const teardown = useRef(0);
+  const mountIdle = useRef<() => void>(() => {});
   const [visible, setVisible] = useState(!!eager);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [compiled, setCompiled] = useState(false);
+  // Paused while a full-screen overlay (mobile menu) hides the scene.
+  const [covered, setCovered] = useState(false);
+  useEffect(() => {
+    const on = (e: Event) => setCovered(!!(e as CustomEvent<{ open: boolean }>).detail?.open);
+    window.addEventListener("envir:overlay", on);
+    return () => window.removeEventListener("envir:overlay", on);
+  }, []);
   // Set while we intentionally unmount the canvas: R3F force-loses the context on dispose,
   // which must not be mistaken for a crash.
   const leaving = useRef(false);
@@ -60,19 +103,15 @@ export default function SceneFrame({ poster, children, className = "", eager, ca
     const el = wrap.current;
     if (!el) return;
     let cancelled = false;
-    let idleId = 0;
+    let cancelEager = () => {};
     if (eager) {
       // Above the fold: let the page (text, poster, hydration) settle first, then start WebGL when idle.
-      const ric = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 200));
       const go = () => {
-        idleId = ric(
-          () => {
-            if (cancelled) return;
-            setNear(true);
-            setContent(true);
-          },
-          { timeout: 2500 },
-        ) as number;
+        cancelEager = idle(() => {
+          if (cancelled) return;
+          setNear(true);
+          cancelEager = idle(() => !cancelled && setContent(true));
+        });
       };
       if (document.readyState === "complete") go();
       else window.addEventListener("load", go, { once: true });
@@ -85,9 +124,15 @@ export default function SceneFrame({ poster, children, className = "", eager, ca
         if (e.isIntersecting) {
           leaving.current = false;
           setFailed(false); // a genuinely lost context gets another chance on the next visit
-          setNear(true);
-          setContent(true);
+          // Mount in idle time, renderer first and scene content one idle slot later, so
+          // building a scene never lands as one long task in front of a user's tap (INP).
+          mountIdle.current();
+          mountIdle.current = idle(() => {
+            setNear(true);
+            mountIdle.current = idle(() => setContent(true));
+          });
         } else {
+          mountIdle.current();
           setContent(false);
           setReady(false);
           setCompiled(false);
@@ -105,7 +150,8 @@ export default function SceneFrame({ poster, children, className = "", eager, ca
     return () => {
       cancelled = true;
       window.clearTimeout(teardown.current);
-      window.cancelIdleCallback?.(idleId);
+      mountIdle.current();
+      cancelEager();
       mountIO.disconnect();
       visIO.disconnect();
     };
@@ -113,7 +159,7 @@ export default function SceneFrame({ poster, children, className = "", eager, ca
 
   const onCompiled = useCallback(() => setCompiled(true), []);
   const show3D = canRender3D(quality) && near && !failed;
-  const frameloop = !visible || !compiled ? "never" : reducedMotion && !alwaysRender ? "demand" : "always";
+  const frameloop = !visible || !compiled || covered ? "never" : reducedMotion && !alwaysRender ? "demand" : "always";
 
   return (
     <div ref={wrap} className={`${/\b(absolute|fixed)\b/.test(className) ? "" : "relative"} overflow-hidden ${className}`} style={transparent ? undefined : { background }}>
