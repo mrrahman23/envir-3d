@@ -2,12 +2,13 @@
 
 import { Html, OrbitControls } from "@react-three/drei";
 import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import * as THREE from "three";
 import type { FacilityZoneId } from "@/content/site";
 import type { Quality } from "@/lib/quality";
 import { tierScale } from "@/lib/quality";
-import { Conveyor, DustField, Hall, Pile, Pines, Ship, Silo, StudioLights, Tank, Truck, Water } from "./kit";
+import { Conveyor, DustField, Hall, Pile, Ship, Silo, StudioLights, Tank, Truck, Water } from "./kit";
+import { Forest } from "./nature";
 
 type V3 = [number, number, number];
 
@@ -22,8 +23,26 @@ export const ZONE_POS: Record<FacilityZoneId, V3> = {
 
 const ZONE_RADIUS: Record<FacilityZoneId, number> = { mottak: 1.3, vask: 2.6, damp: 0.9, lager: 1.4, lab: 0.9, kai: 2.2 };
 
+// Vertical alpha gradient for the light column above a selected zone.
+let beamTex: THREE.Texture | null = null;
+function beamTexture() {
+  if (beamTex) return beamTex;
+  const c = document.createElement("canvas");
+  c.width = 4;
+  c.height = 128;
+  const ctx = c.getContext("2d")!;
+  const g = ctx.createLinearGradient(0, 0, 0, 128);
+  g.addColorStop(0, "rgba(255,255,255,0)");
+  g.addColorStop(1, "rgba(255,255,255,1)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 4, 128);
+  beamTex = new THREE.CanvasTexture(c);
+  return beamTex;
+}
+
 function Zone({
   id,
+  label,
   active,
   hovered,
   onHover,
@@ -32,6 +51,7 @@ function Zone({
   children,
 }: {
   id: FacilityZoneId;
+  label: string;
   active: boolean;
   hovered: boolean;
   onHover: (id: FacilityZoneId | null) => void;
@@ -40,15 +60,23 @@ function Zone({
   children: ReactNode;
 }) {
   const ring = useRef<THREE.Mesh>(null);
+  const beam = useRef<THREE.Mesh>(null);
   const r = ZONE_RADIUS[id];
-  useFrame(({ clock }) => {
-    const m = ring.current?.material as THREE.MeshBasicMaterial | undefined;
-    if (!m || !ring.current) return;
-    const target = active ? 0.85 : hovered ? 0.5 : 0;
-    m.opacity = THREE.MathUtils.lerp(m.opacity, target * (0.8 + Math.sin(clock.elapsedTime * 3) * 0.2), 0.12);
-    ring.current.visible = m.opacity > 0.01;
+  useFrame(({ clock }, dt) => {
+    const pulse = 0.82 + Math.sin(clock.elapsedTime * 2.6) * 0.18;
+    const rm = ring.current?.material as THREE.MeshBasicMaterial | undefined;
+    if (rm && ring.current) {
+      rm.opacity = THREE.MathUtils.damp(rm.opacity, (active ? 0.9 : hovered ? 0.55 : 0) * pulse, 8, dt);
+      ring.current.visible = rm.opacity > 0.01;
+    }
+    const bm = beam.current?.material as THREE.MeshBasicMaterial | undefined;
+    if (bm && beam.current) {
+      bm.opacity = THREE.MathUtils.damp(bm.opacity, active ? 0.13 : hovered ? 0.07 : 0, 6, dt);
+      beam.current.visible = bm.opacity > 0.005;
+    }
   });
   const pos = ZONE_POS[id];
+  const expanded = active || hovered;
   return (
     <group
       position={pos}
@@ -68,8 +96,13 @@ function Zone({
     >
       {children}
       <mesh ref={ring} rotation-x={-Math.PI / 2} position={[0, 0.02, 0]} visible={false}>
-        <ringGeometry args={[r * 0.92, r, 64]} />
-        <meshBasicMaterial color="#b9d95a" transparent opacity={0} depthWrite={false} />
+        <ringGeometry args={[r * 0.9, r, 72]} />
+        <meshBasicMaterial color="#b9d95a" transparent opacity={0} depthWrite={false} toneMapped={false} />
+      </mesh>
+      {/* Soft light column: readable highlight even when the zone is partly occluded */}
+      <mesh ref={beam} position={[0, 1.1, 0]} visible={false}>
+        <cylinderGeometry args={[r * 0.9, r * 0.9, 2.2, 48, 1, true]} />
+        <meshBasicMaterial color="#b9d95a" alphaMap={beamTexture()} transparent opacity={0} depthWrite={false} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} toneMapped={false} />
       </mesh>
       {/* invisible hit area so the whole zone is easy to target */}
       <mesh rotation-x={-Math.PI / 2} position={[0, 0.03, 0]}>
@@ -82,11 +115,14 @@ function Zone({
           tabIndex={-1}
           aria-hidden
           onClick={() => onSelect(id)}
-          className={`flex h-8 w-8 items-center justify-center rounded-full border text-xs font-semibold shadow-lg transition-all duration-300 ${
-            active ? "scale-110 border-lime bg-lime text-forest-950" : "border-white/40 bg-night/75 text-white backdrop-blur hover:border-lime"
+          onPointerEnter={() => onHover(id)}
+          onPointerLeave={() => onHover(null)}
+          className={`flex h-8 items-center gap-2 whitespace-nowrap rounded-full border pl-[3px] text-xs font-semibold shadow-lg transition-all duration-300 ${
+            active ? "border-lime bg-lime pr-3 text-forest-950" : expanded ? "border-lime/70 bg-night/85 pr-3 text-white backdrop-blur" : "border-white/40 bg-night/75 pr-[3px] text-white backdrop-blur"
           }`}
         >
-          {index + 1}
+          <span className={`flex h-6 w-6 items-center justify-center rounded-full ${active ? "bg-forest-950/10" : "bg-white/10"}`}>{index + 1}</span>
+          <span className={`overflow-hidden transition-[max-width,opacity] duration-300 ${expanded ? "max-w-[10rem] opacity-100" : "max-w-0 opacity-0"}`}>{label}</span>
         </button>
       </Html>
     </group>
@@ -97,34 +133,82 @@ function Steam({ position, count }: { position: V3; count: number }) {
   return <DustField count={count} bounds={[0.5, 2.2, 0.5]} position={position} palette={["#e9eef0", "#ffffff", "#cfd8db", "#ffffff"]} size={[2, 5]} rise={0.25} opacity={0.35} glint={0} />;
 }
 
+// Overview framing, and the direction each zone is viewed from when selected.
+const OVERVIEW_POS = new THREE.Vector3(0, 9.5, 12.5);
+const OVERVIEW_TARGET = new THREE.Vector3(0, 0, 0);
+const VIEW_DIR = new THREE.Vector3(0.12, 0.62, 0.78).normalize();
+// Wider portrait canvases need more distance to keep the zone in context.
+const zoneDistance = (id: FacilityZoneId, aspect: number) => (5.6 + ZONE_RADIUS[id] * 2.3) * (aspect < 1.2 ? 1.3 : 1);
+
 export default function FacilityScene({
   quality,
   reducedMotion,
   active,
+  preview,
   onSelect,
   controls,
+  labels,
 }: {
   quality: Quality;
   reducedMotion: boolean;
   active: FacilityZoneId | null;
+  /** Zone highlighted from the list (hover / focus) without selecting it. */
+  preview: FacilityZoneId | null;
   onSelect: (id: FacilityZoneId) => void;
   controls: boolean;
+  labels: Record<FacilityZoneId, string>;
 }) {
   const k = tierScale(quality);
   const [hovered, setHovered] = useState<FacilityZoneId | null>(null);
   const orbit = useRef<React.ComponentRef<typeof OrbitControls>>(null);
-  const { camera } = useThree();
-  const target = useMemo(() => new THREE.Vector3(0, 0, 0), []);
-  const desired = useMemo(() => new THREE.Vector3(), []);
+  const { camera, size } = useThree();
+  const target = useMemo(() => OVERVIEW_TARGET.clone(), []);
+  const goalPos = useMemo(() => new THREE.Vector3(), []);
+  const goalTarget = useMemo(() => new THREE.Vector3(), []);
+  const flying = useRef(true);
   const ids = Object.keys(ZONE_POS) as FacilityZoneId[];
 
+  // Every new selection starts a fly-to; dragging the model cancels it.
+  useEffect(() => {
+    flying.current = true;
+  }, [active]);
+  useEffect(() => {
+    const c = orbit.current;
+    if (!c) return;
+    const stop = () => {
+      flying.current = false;
+    };
+    c.addEventListener("start", stop);
+    return () => c.removeEventListener("start", stop);
+  }, [controls]);
+
   useFrame((_, dt) => {
-    const goal = active ? ZONE_POS[active] : ([0, 0, 0] as V3);
-    desired.set(goal[0] * 0.6, 0, goal[2] * 0.6);
-    if (reducedMotion) target.copy(desired);
-    else target.lerp(desired, 1 - Math.exp(-dt * 2.5));
+    if (active) {
+      const [x, , z] = ZONE_POS[active];
+      goalTarget.set(x, 0.35, z);
+      goalPos.copy(VIEW_DIR).multiplyScalar(zoneDistance(active, size.width / size.height)).add(goalTarget);
+    } else {
+      goalTarget.copy(OVERVIEW_TARGET);
+      goalPos.copy(OVERVIEW_POS);
+    }
+    if (flying.current) {
+      if (reducedMotion) {
+        target.copy(goalTarget);
+        camera.position.copy(goalPos);
+        flying.current = false;
+      } else {
+        const lambda = 2.6;
+        target.x = THREE.MathUtils.damp(target.x, goalTarget.x, lambda, dt);
+        target.y = THREE.MathUtils.damp(target.y, goalTarget.y, lambda, dt);
+        target.z = THREE.MathUtils.damp(target.z, goalTarget.z, lambda, dt);
+        camera.position.x = THREE.MathUtils.damp(camera.position.x, goalPos.x, lambda, dt);
+        camera.position.y = THREE.MathUtils.damp(camera.position.y, goalPos.y, lambda, dt);
+        camera.position.z = THREE.MathUtils.damp(camera.position.z, goalPos.z, lambda, dt);
+        if (camera.position.distanceTo(goalPos) < 0.01 && target.distanceTo(goalTarget) < 0.01) flying.current = false;
+      }
+    }
     if (orbit.current) {
-      orbit.current.target.copy(target);
+      if (flying.current) orbit.current.target.copy(target);
       orbit.current.update();
     } else {
       camera.lookAt(target);
@@ -135,8 +219,9 @@ export default function FacilityScene({
   const zoneProps = (id: FacilityZoneId) => ({
     id,
     index: ids.indexOf(id),
+    label: labels[id],
     active: active === id,
-    hovered: hovered === id,
+    hovered: hovered === id || preview === id,
     onHover: setHovered,
     onSelect,
   });
@@ -160,7 +245,7 @@ export default function FacilityScene({
         <meshStandardMaterial color="#344a33" roughness={1} />
       </mesh>
       <group position={[0, 0, -4.4]}>
-        <Pines count={Math.round(70 * k) + 20} area={[15, 1.8]} height={landHeight} scale={2.2} seed={6} />
+        <Forest count={Math.round(110 * k) + 30} area={[15, 1.8]} height={landHeight} scale={1.05} seed={6} leafy={0.25} />
       </group>
       <Water size={[22, 9]} position={[0, -0.08, 7.1]} />
       {/* quay edge */}
@@ -282,7 +367,7 @@ export default function FacilityScene({
           maxPolarAngle={1.15}
           minAzimuthAngle={-0.9}
           maxAzimuthAngle={0.9}
-          autoRotate={!reducedMotion && !active}
+          autoRotate={!reducedMotion && !active && !hovered && !preview}
           autoRotateSpeed={0.35}
         />
       )}

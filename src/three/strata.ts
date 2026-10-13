@@ -22,8 +22,8 @@ export function drawStrata(): HTMLCanvasElement {
     { to: 0.22, color: [44, 31, 22], roots: true, pebbles: 40, pebbleSize: [1, 3] },
     { to: 0.4, color: [92, 63, 41], pebbles: 90, pebbleSize: [1.5, 4] },
     { to: 0.53, color: [158, 128, 88], pebbles: 120, pebbleSize: [0.8, 2] },
-    { to: 0.74, color: [104, 96, 86], pebbles: 520, pebbleSize: [2, 9] },
-    { to: 1.0, color: [62, 64, 66], cracks: true, pebbles: 60, pebbleSize: [8, 22] },
+    { to: 0.74, color: [104, 96, 86], pebbles: 620, pebbleSize: [1.5, 7] },
+    { to: 1.0, color: [62, 64, 66], cracks: true, pebbles: 110, pebbleSize: [3, 12] },
   ];
   // Per-pixel base colour with wavy boundaries and fine grain.
   const img = ctx.createImageData(W, H);
@@ -70,7 +70,7 @@ export function drawStrata(): HTMLCanvasElement {
       const r = a + Math.pow(rnd(), 1.8) * (b - a);
       const px = rnd() * W;
       const py = y0 + rnd() * (y1 - y0);
-      const g = 80 + rnd() * 100;
+      const g = 70 + rnd() * 70;
       const tint = rnd() * 22;
       const sides = 5 + Math.floor(rnd() * 4);
       const rot = rnd() * Math.PI;
@@ -81,8 +81,8 @@ export function drawStrata(): HTMLCanvasElement {
         const cx = px + ox;
         if (cx < -b * 2 || cx > W + b * 2) continue;
         const grad = ctx.createRadialGradient(cx - r * 0.3, py - r * 0.3, r * 0.1, cx, py, r * 1.2);
-        grad.addColorStop(0, `rgb(${g + tint + 40},${g + tint * 0.6 + 36},${g + 30})`);
-        grad.addColorStop(1, `rgb(${(g + tint) * 0.55},${(g + tint * 0.6) * 0.55},${g * 0.55})`);
+        grad.addColorStop(0, `rgb(${g + tint + 16},${g + tint * 0.6 + 14},${g + 10})`);
+        grad.addColorStop(1, `rgb(${(g + tint) * 0.68},${(g + tint * 0.6) * 0.68},${g * 0.66})`);
         ctx.fillStyle = grad;
         ctx.beginPath();
         for (let k = 0; k < sides; k++) {

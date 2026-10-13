@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import { transformStages } from "@/content/site";
 import SceneFrame from "@/components/three/SceneFrame";
 import { canRender3D, useQuality } from "@/lib/quality";
+import { STAGES, storyLight, storyPhase } from "@/lib/story";
 import { Eyebrow, TextLink } from "@/components/ui";
 
 const TransformScene = dynamic(() => import("@/three/TransformScene"), { ssr: false });
@@ -45,20 +46,45 @@ export default function Transform() {
 function ScrollStory() {
   const track = useRef<HTMLDivElement>(null);
   const progress = useRef(0);
+  const articles = useRef<(HTMLElement | null)[]>([]);
+  const fills = useRef<(HTMLSpanElement | null)[]>([]);
+  const darkVeil = useRef<HTMLDivElement>(null);
+  const lightVeil = useRef<HTMLDivElement>(null);
   const [stage, setStage] = useState(0);
+  const [bright, setBright] = useState(false);
 
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger);
+    const apply = (p: number) => {
+      progress.current = p;
+      const phase = storyPhase(p);
+      // Copy cross-fades continuously with the camera — no threshold jumps.
+      articles.current.forEach((el, i) => {
+        if (!el) return;
+        const d = phase - i;
+        const o = Math.max(0, 1 - Math.abs(d) * 2.1);
+        el.style.opacity = String(o);
+        el.style.transform = `translate3d(0, ${(-d * 36).toFixed(1)}px, 0)`;
+        el.style.visibility = o < 0.02 ? "hidden" : "visible";
+      });
+      fills.current.forEach((el, i) => {
+        if (el) el.style.transform = `scaleX(${Math.min(1, Math.max(0, phase + 1 - i)).toFixed(3)})`;
+      });
+      const light = storyLight(phase);
+      if (darkVeil.current) darkVeil.current.style.opacity = String(1 - light);
+      if (lightVeil.current) lightVeil.current.style.opacity = String(light);
+      const s = Math.min(STAGES - 1, Math.round(phase));
+      setStage((prev) => (prev === s ? prev : s));
+      setBright((prev) => (prev === light > 0.5 ? prev : light > 0.5));
+    };
     const st = ScrollTrigger.create({
       trigger: track.current,
       start: "top top",
       end: "bottom bottom",
-      onUpdate: (self) => {
-        progress.current = self.progress;
-        const s = Math.min(transformStages.length - 1, Math.round(self.progress * (transformStages.length - 1)));
-        setStage((prev) => (prev === s ? prev : s));
-      },
+      onUpdate: (self) => apply(self.progress),
+      onRefresh: (self) => apply(self.progress),
     });
+    apply(st.progress);
     return () => st.kill();
   }, []);
 
@@ -67,74 +93,89 @@ function ScrollStory() {
     if (!el) return;
     const top = el.getBoundingClientRect().top + window.scrollY;
     const range = el.offsetHeight - window.innerHeight;
-    window.scrollTo({ top: top + (range * i) / (transformStages.length - 1) + 2, behavior: "smooth" });
+    const smoothScroll = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: top + (range * i) / (STAGES - 1) + 2, behavior: smoothScroll ? "smooth" : "auto" });
   };
 
   return (
-    <div ref={track} className="relative" style={{ height: `${transformStages.length * 100}svh` }}>
+    <div ref={track} className="relative h-[420svh] md:h-[500svh]">
       <div className="sticky top-0 h-[100svh] overflow-hidden">
         <SceneFrame
           className="absolute inset-0"
           label="Kunstnerisk 3D-visualisering av gjenvinningsprosessen i fem steg: mottak, sortering, vask og rensing, finsortering og ny bruk."
-          camera={{ fov: 38, position: [-2.6, 1.9, 4.6] }}
+          camera={{ fov: 38, position: [-1.4, 2.7, 7.0] }}
           poster={<div className="absolute inset-0 bg-night" />}
         >
           {({ quality }) => <TransformScene progress={progress} quality={quality} />}
         </SceneFrame>
 
-        <div aria-hidden className={`pointer-events-none absolute inset-0 transition-opacity duration-700 ${stage === 4 ? "opacity-0" : "opacity-100"} bg-[linear-gradient(90deg,rgba(7,24,26,0.85)_0%,rgba(7,24,26,0.35)_40%,rgba(7,24,26,0)_65%)] max-md:bg-[linear-gradient(0deg,rgba(7,24,26,0.92)_0%,rgba(7,24,26,0.5)_45%,rgba(7,24,26,0)_70%)]`} />
-        <div aria-hidden className={`pointer-events-none absolute inset-0 transition-opacity duration-700 ${stage === 4 ? "opacity-100" : "opacity-0"} bg-[linear-gradient(90deg,rgba(245,244,238,0.92)_0%,rgba(245,244,238,0.4)_40%,rgba(245,244,238,0)_65%)] max-md:bg-[linear-gradient(0deg,rgba(245,244,238,0.95)_0%,rgba(245,244,238,0.6)_45%,rgba(245,244,238,0)_70%)]`} />
+        <div ref={darkVeil} aria-hidden className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(7,24,26,0.85)_0%,rgba(7,24,26,0.35)_40%,rgba(7,24,26,0)_65%)] max-md:bg-[linear-gradient(0deg,rgba(7,24,26,0.92)_0%,rgba(7,24,26,0.5)_45%,rgba(7,24,26,0)_70%)]" />
+        <div ref={lightVeil} aria-hidden style={{ opacity: 0 }} className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(245,244,238,0.92)_0%,rgba(245,244,238,0.4)_40%,rgba(245,244,238,0)_65%)] max-md:bg-[linear-gradient(0deg,rgba(245,244,238,0.95)_0%,rgba(245,244,238,0.6)_45%,rgba(245,244,238,0)_70%)]" />
 
         <div className="relative mx-auto flex h-full max-w-[1440px] flex-col justify-end px-4 pb-28 sm:px-6 md:justify-center md:pb-0 lg:px-10">
-          <div className="relative min-h-[300px] max-w-[30rem] md:min-h-[340px]" aria-live="polite">
-            {transformStages.map((s, i) => (
-              <article
-                key={s.key}
-                aria-hidden={stage !== i}
-                className={`absolute inset-x-0 bottom-0 transition-all duration-700 ease-[var(--ease-cine)] md:bottom-auto md:top-0 ${
-                  stage === i ? "translate-y-0 opacity-100" : i < stage ? "-translate-y-6 opacity-0" : "translate-y-6 opacity-0"
-                } ${stage === 4 ? "text-forest-950" : "text-white"}`}
-              >
-                <p className={`eyebrow ${stage === 4 ? "text-emerald-700" : "text-lime"}`}>{s.kicker}</p>
-                <h3 className="display mt-4 text-[clamp(2rem,4vw,3.4rem)]">{s.title}</h3>
-                <p className={`mt-5 text-[1.02rem] leading-relaxed ${stage === 4 ? "text-graphite/80" : "text-white/75"}`}>{s.text}</p>
-                {i === 2 && (
-                  <p className={`mt-4 text-sm ${stage === 4 ? "text-graphite/70" : "text-white/50"}`}>
-                    Forurensningene fjernes ikke i ett enkelt trinn – de samles i slammet og håndteres videre.
-                  </p>
-                )}
-                {i === 4 && (
-                  <div className="mt-6">
-                    <TextLink href="/jordvaskeanlegg" className="text-forest">
-                      Les om jordvaskeanlegget
-                    </TextLink>
-                  </div>
-                )}
-              </article>
-            ))}
+          <div className="relative min-h-[300px] max-w-[30rem] md:min-h-[340px]">
+            {transformStages.map((s, i) => {
+              const light = i === STAGES - 1;
+              return (
+                <article
+                  key={s.key}
+                  ref={(el) => {
+                    articles.current[i] = el;
+                  }}
+                  aria-hidden={stage !== i}
+                  style={{ opacity: i === 0 ? 1 : 0, visibility: i === 0 ? "visible" : "hidden" }}
+                  className={`absolute inset-x-0 bottom-0 will-change-transform md:bottom-auto md:top-0 ${light ? "text-forest-950" : "text-white"}`}
+                >
+                  <p className={`eyebrow ${light ? "text-emerald-700" : "text-lime"}`}>{s.kicker}</p>
+                  <h3 className="display mt-4 text-[clamp(2rem,4vw,3.4rem)]">{s.title}</h3>
+                  <p className={`mt-5 text-[1.02rem] leading-relaxed ${light ? "text-graphite/80" : "text-white/75"}`}>{s.text}</p>
+                  {i === 2 && <p className="mt-4 text-sm text-white/55">Forurensningene fjernes ikke i ett enkelt trinn – de samles i slammet og håndteres videre.</p>}
+                  {i === 4 && (
+                    <div className="mt-6">
+                      <TextLink href="/jordvaskeanlegg" className="text-forest">
+                        Les om jordvaskeanlegget
+                      </TextLink>
+                    </div>
+                  )}
+                </article>
+              );
+            })}
           </div>
+          {/* Screen readers get the current step once, not five overlapping articles */}
+          <p className="sr-only" aria-live="polite">
+            Steg {stage + 1} av {STAGES}: {transformStages[stage].title}
+          </p>
         </div>
 
-        {/* Stepper — every stage reachable without scrolling the whole sequence */}
-        <nav aria-label="Steg i prosessen" className="absolute inset-x-0 bottom-6 z-10 mx-auto flex max-w-[1440px] px-4 sm:px-6 md:bottom-10 lg:px-10">
-          <ol className={`flex w-full gap-1.5 md:w-auto md:gap-2 ${stage === 4 ? "text-forest-950" : "text-white"}`}>
+        {/* Continuous progress — every stage reachable without scrolling the whole sequence */}
+        <nav aria-label="Steg i prosessen" className="absolute inset-x-0 bottom-6 z-10 mx-auto flex max-w-[1440px] items-end justify-between gap-6 px-4 sm:px-6 md:bottom-10 lg:px-10">
+          <ol className={`flex w-full gap-1.5 transition-colors duration-500 md:w-auto md:gap-2 ${bright ? "text-forest-950" : "text-white"}`}>
             {transformStages.map((s, i) => (
               <li key={s.key} className="flex-1 md:flex-none">
-                <button
-                  type="button"
-                  onClick={() => jump(i)}
-                  aria-current={stage === i ? "step" : undefined}
-                  className="group flex w-full flex-col gap-2 text-left md:w-36"
-                >
-                  <span className={`block h-[3px] w-full rounded-full transition-colors duration-500 ${stage >= i ? (stage === 4 ? "bg-emerald" : "bg-lime") : "bg-current opacity-20"}`} />
-                  <span className={`hidden text-xs font-medium transition-opacity md:block ${stage === i ? "opacity-100" : "opacity-55 group-hover:opacity-90"}`}>{s.title}</span>
+                <button type="button" onClick={() => jump(i)} aria-current={stage === i ? "step" : undefined} className="group flex w-full flex-col gap-2 py-2 text-left md:w-36">
+                  <span className="relative block h-[3px] w-full overflow-hidden rounded-full bg-current/20">
+                    <span
+                      ref={(el) => {
+                        fills.current[i] = el;
+                      }}
+                      className={`absolute inset-0 origin-left rounded-full ${bright ? "bg-emerald-700" : "bg-lime"}`}
+                      style={{ transform: `scaleX(${i === 0 ? 1 : 0})` }}
+                    />
+                  </span>
+                  <span className={`hidden text-xs font-medium transition-opacity md:block ${stage === i ? "opacity-100" : "opacity-60 group-hover:opacity-90"}`}>{s.title}</span>
                   <span className="sr-only md:hidden">{s.title}</span>
                 </button>
               </li>
             ))}
           </ol>
+          <a href="#anlegget" className={`hidden shrink-0 pb-2 text-xs font-medium underline underline-offset-4 md:block ${bright ? "text-forest-950/70" : "text-white/60"} hover:opacity-100`}>
+            Hopp over animasjonen
+          </a>
         </nav>
-        <p className={`absolute left-4 right-4 top-[calc(var(--nav-h)+12px)] text-right text-[0.62rem] uppercase tracking-[0.16em] sm:left-auto sm:right-6 sm:text-[0.68rem] lg:right-10 ${stage === 4 ? "text-forest/70" : "text-white/55"}`}>
+        <a href="#anlegget" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-[calc(var(--nav-h)+12px)] focus:z-20 focus:rounded-full focus:bg-lime focus:px-4 focus:py-2 focus:text-forest-950">
+          Hopp over animasjonen
+        </a>
+        <p className={`absolute left-4 right-4 top-[calc(var(--nav-h)+12px)] text-right text-[0.62rem] uppercase tracking-[0.16em] transition-colors duration-500 sm:left-auto sm:right-6 sm:text-[0.68rem] lg:right-10 ${bright ? "text-forest/70" : "text-white/55"}`}>
           Kunstnerisk visualisering – ikke opptak fra anlegget
         </p>
       </div>

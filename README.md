@@ -40,6 +40,8 @@ The forms on today's envir.com **don't submit anywhere**. They only show a "than
 - **Resend:** `RESEND_API_KEY` + `CONTACT_TO_EMAIL` (+ `CONTACT_FROM_EMAIL` on a verified domain), or
 - **Webhook:** `CONTACT_WEBHOOK_URL` (JSON POST to a CRM, Make, Zapier, Slack and similar).
 
+The honeypot (`website`) is a `hidden` input with no label, so it's invisible, out of the tab order and absent from the accessibility tree. The rate limit is per server instance, which is only a light deterrent on serverless hosting.
+
 With neither configured, the API returns `503 not_configured` and the user sees an honest message with a prefilled `mailto:` link. Three variants mirror the original forms: general, delivering material (`/mottak`), buying material (`/gjenvunne-masser`).
 
 ## 3D, performance and accessibility
@@ -52,16 +54,14 @@ With neither configured, the API returns `503 not_configured` and the user sees 
 - No glTF downloads: all geometry is procedural.
 - Landmarks, skip link, visible focus, keyboard-operable explorers (`aria-pressed`, `aria-live`), alt text, text contrast ≥ 4.5:1.
 
-**Lighthouse 12.8** (local production build):
+**Lighthouse 12.8** (local production build, homepage, warm runs):
 
 | | Performance | Accessibility | Best practices | SEO |
 | --- | --- | --- | --- | --- |
 | `/` desktop | 100 | 100 | 100 | 100 |
-| `/` mobile (simulated) | 81–88 | 100 | 100 | 100 |
-| `/mottak` mobile | 95 | 100 | 100 | 100 |
-| `/gjenvunne-masser` mobile | 92–93 | 100 | 100 | 100 |
+| `/` mobile (simulated 4G, 4× CPU) | 93–94 | 100 | 100 | 100 |
 
-CLS is 0 on every page. The homepage's remaining mobile gap is hydration plus Three.js startup.
+CLS is 0, mobile TBT 50–70 ms, mobile LCP ≈ 3.1 s. A first run against a cold server scored 76 (one 0.9 s script task); it didn't recur.
 
 ## Content provenance and open questions for Envir
 

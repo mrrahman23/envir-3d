@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { metrics } from "@/content/site";
+import { company, metrics, sustainability } from "@/content/site";
 import { Eyebrow } from "@/components/ui";
 
 const nf = new Intl.NumberFormat("nb-NO");
@@ -67,7 +67,7 @@ export default function Impact() {
               Et av verdens mest komplette anlegg – i tall.
             </h2>
           </div>
-          <p className="max-w-xs text-sm text-white/50">Publiserte nøkkeltall fra Envir. Ikke sanntidsmålinger fra driften.</p>
+          <p className="max-w-xs text-sm text-white/60">Publiserte nøkkeltall fra Envir. Ikke sanntidsmålinger fra driften.</p>
         </div>
 
         <div className="mt-16 grid gap-px overflow-hidden rounded-[28px] border border-white/10 bg-white/10 lg:grid-cols-6">
@@ -78,6 +78,7 @@ export default function Impact() {
               <CountUp value={recovery.value} suffix={recovery.suffix} start={inView} />
             </p>
             <p className="mt-6 max-w-lg text-white/70">{recovery.text}</p>
+            <Source>Envir, jordvaskeanlegget · andel av mottatte masser som gjenvinnes</Source>
             <StreamSplit live={inView} />
           </article>
 
@@ -90,6 +91,7 @@ export default function Impact() {
             </p>
             <PileGrow live={inView} />
             <p className="mt-4 text-[0.95rem] text-white/65">{capacity.text}</p>
+            <Source>Envir · anleggets kapasitet, ikke årlig mottatt mengde</Source>
           </article>
 
           {/* 0,01–90 mm */}
@@ -98,6 +100,7 @@ export default function Impact() {
             <p className="display mt-4 text-[clamp(2.6rem,5vw,4.4rem)] leading-none">{fractions.display}</p>
             <ScaleBar />
             <p className="mt-4 text-[0.95rem] text-white/65">{fractions.text}</p>
+            <Source>Envir · se produktene for faktiske fraksjoner og priser</Source>
           </article>
 
           {/* 5000 t */}
@@ -108,6 +111,7 @@ export default function Impact() {
             </p>
             <QuayShip />
             <p className="mt-4 text-[0.95rem] text-white/65">{quay.text}</p>
+            <Source>Envir · ISPS-kai, båtstørrelse i tonn</Source>
           </article>
 
           {/* < 10 min */}
@@ -122,12 +126,42 @@ export default function Impact() {
             <div className="mt-6 flex-1 lg:mt-0">
               <Route />
               <p className="mt-4 max-w-2xl text-[0.95rem] text-white/65">{distance.text}</p>
+              <Source>Envir · Sjøkrigsskoleveien 15, Laksevåg</Source>
             </div>
           </article>
+        </div>
+
+        {/* Documented climate effect — kept apart from operational figures, with method and source */}
+        <div className="mt-6 grid gap-px overflow-hidden rounded-[28px] border border-white/10 bg-white/10 lg:grid-cols-[1.1fr_repeat(3,1fr)]">
+          <div className="bg-night p-7 sm:p-10">
+            <p className="eyebrow text-lime">Livsløpsanalyse (LCA)</p>
+            <p className="mt-4 text-[0.95rem] leading-relaxed text-white/70">
+              Reduksjon i klimagassutslipp (kg CO₂-ekv.) for Envirs jordvaskeprosess, sammenlignet med deponering og jomfruelige materialer.
+            </p>
+            <Source>
+              NORSUS, april 2026 · ISO 14040/14044 og EN 15804 · transport fra anlegget er ikke inkludert ·{" "}
+              <a href={company.docs.lca} className="underline underline-offset-2 hover:text-white">
+                LCA-rapporten (PDF)
+              </a>
+            </Source>
+          </div>
+          {sustainability.lca.map((l) => (
+            <div key={l.v} className="bg-night p-7 sm:p-10">
+              <p className="display text-[clamp(2.6rem,4vw,3.6rem)] leading-none text-white">
+                −{l.v}
+                <span className="ml-1 text-[0.5em] text-white/60">%</span>
+              </p>
+              <p className="mt-4 text-[0.92rem] leading-snug text-white/70">{l.short}</p>
+            </div>
+          ))}
         </div>
       </div>
     </section>
   );
+}
+
+function Source({ children }: { children: React.ReactNode }) {
+  return <p className="mt-5 border-t border-white/10 pt-4 text-[0.75rem] leading-relaxed text-white/55">Kilde: {children}</p>;
 }
 
 function StreamSplit({ live }: { live: boolean }) {

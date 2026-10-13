@@ -6,12 +6,14 @@ import { useState } from "react";
 import { company, hero } from "@/content/site";
 import SceneFrame from "@/components/three/SceneFrame";
 import FilmDialog from "@/components/FilmDialog";
+import { canRender3D, useQuality } from "@/lib/quality";
 import { ButtonLink, Icon } from "@/components/ui";
 
 const HeroScene = dynamic(() => import("@/three/HeroScene"), { ssr: false });
 
 export default function Hero() {
   const [film, setFilm] = useState(false);
+  const { quality } = useQuality();
   return (
     <section aria-labelledby="hero-title" className="grain relative isolate flex min-h-[640px] flex-col overflow-hidden bg-night text-white" style={{ height: "100svh" }}>
       <div aria-hidden className="absolute inset-0 -z-10 bg-[radial-gradient(70%_60%_at_70%_55%,#0f3d34_0%,#07181a_62%)]" />
@@ -60,6 +62,20 @@ export default function Hero() {
               Kjøp gjenvunne masser
             </ButtonLink>
           </div>
+          {/* Verified key figures (envir.com) — the business case in the first seconds */}
+          <dl className="hero-in mt-10 grid max-w-[34rem] grid-cols-3 gap-4 border-t border-white/12 pt-6 max-sm:hidden" style={{ animationDelay: "1s" }}>
+            {[
+              { v: "80 %", l: "av massene gjenvinnes" },
+              { v: "150 000+", l: "tonn mottakskapasitet i året" },
+              { v: "< 10 min", l: "fra Bergen sentrum" },
+            ].map((f) => (
+              <div key={f.l}>
+                <dt className="sr-only">{f.l}</dt>
+                <dd className="display text-[1.55rem] leading-none text-white">{f.v}</dd>
+                <dd className="mt-2 text-[0.8rem] leading-snug text-white/60">{f.l}</dd>
+              </div>
+            ))}
+          </dl>
         </div>
       </div>
 
@@ -84,7 +100,11 @@ export default function Hero() {
           <span className="sm:hidden">Film</span>
         </button>
       </div>
-      <p className="absolute right-4 top-[calc(var(--nav-h)+12px)] text-[0.68rem] uppercase tracking-[0.18em] text-white/55 sm:right-6 lg:right-10">3D-illustrasjon</p>
+      {/* Seamless hand-off into the transformation sequence */}
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 -z-[4] h-40 bg-[linear-gradient(180deg,rgba(7,24,26,0)_0%,#07181a_100%)]" />
+      <p className="absolute right-4 top-[calc(var(--nav-h)+12px)] text-[0.68rem] uppercase tracking-[0.18em] text-white/55 sm:right-6 lg:right-10">
+        {canRender3D(quality) ? "3D-illustrasjon" : "Foto: Envir"}
+      </p>
 
       <FilmDialog open={film} onClose={() => setFilm(false)} src={company.film} title="Envir presentasjonsfilm" />
     </section>

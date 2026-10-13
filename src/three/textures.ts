@@ -65,3 +65,20 @@ export function grainTexture(base: [number, number, number], key: string, spread
   cache.set(key, tex);
   return tex;
 }
+
+/** Vertical corrugated cladding profile, used as a bump map on hall façades. */
+export function corrugatedTexture(): THREE.Texture {
+  const key = "corrugated";
+  if (cache.has(key)) return cache.get(key)!;
+  const [c, ctx] = canvas(64, 4);
+  const g = ctx.createLinearGradient(0, 0, 64, 0);
+  for (let i = 0; i <= 8; i++) {
+    g.addColorStop(i / 8, i % 2 ? "#ffffff" : "#5a5a5a");
+  }
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 64, 4);
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  cache.set(key, tex);
+  return tex;
+}

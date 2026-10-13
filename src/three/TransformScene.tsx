@@ -6,10 +6,13 @@ import { useMemo, useRef, type MutableRefObject } from "react";
 import * as THREE from "three";
 import type { Quality } from "@/lib/quality";
 import { tierScale } from "@/lib/quality";
+import { STAGES, storyLight, storyPhase } from "@/lib/story";
 import { mulberry32 } from "./noise";
-import { Conveyor, DustField, Excavator, FlowLine, Hall, makeHeightFn, Pile, Pines, RockMound, StudioLights, Tank, Truck, WashDrum } from "./kit";
+import { Conveyor, DustField, Excavator, FlowLine, Hall, makeHeightFn, Pile, RockMound, StudioLights, Tank, Truck, WashDrum } from "./kit";
+import { Forest } from "./nature";
 
-export const STAGE_X = [0, 14, 28, 42, 56];
+// Stations sit close enough that neighbours and the material stream stay in frame while travelling.
+export const STAGE_X = [0, 9.5, 19, 28.5, 38];
 
 // Look targets sit left of each station so the subject composes right of the copy.
 const CAMS: { pos: [number, number, number]; look: [number, number, number] }[] = [
@@ -23,25 +26,34 @@ const CAMS: { pos: [number, number, number]; look: [number, number, number] }[] 
 const DARK = new THREE.Color("#07181a");
 const LIGHT = new THREE.Color("#dfe9e3");
 
-function stageBlend(p: number) {
-  const s = THREE.MathUtils.clamp(p, 0, 1) * (CAMS.length - 1);
-  const i = Math.min(CAMS.length - 2, Math.floor(s));
-  const f = THREE.MathUtils.smootherstep(s - i, 0.22, 0.78);
-  return { i, f };
-}
+const POS_CURVE = new THREE.CatmullRomCurve3(CAMS.map((c) => new THREE.Vector3(...c.pos)), false, "centripetal");
+const LOOK_CURVE = new THREE.CatmullRomCurve3(CAMS.map((c) => new THREE.Vector3(...c.look)), false, "centripetal");
 
+/** In-scene caption that fades out with distance, so only the current station is labelled. */
 function Label({ position, children, tone = "dark" }: { position: [number, number, number]; children: React.ReactNode; tone?: "dark" | "light" }) {
+  const group = useRef<THREE.Group>(null);
+  const el = useRef<HTMLDivElement>(null);
+  const world = useMemo(() => new THREE.Vector3(), []);
+  useFrame(({ camera }) => {
+    if (!group.current || !el.current) return;
+    group.current.getWorldPosition(world);
+    const o = 1 - THREE.MathUtils.smoothstep(world.distanceTo(camera.position), 6.5, 9);
+    el.current.style.opacity = o.toFixed(2);
+  });
   return (
-    <Html position={position} center distanceFactor={4.2} zIndexRange={[10, 0]} style={{ pointerEvents: "none" }}>
-      <div
-        aria-hidden
-        className={`whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[10px] font-medium tracking-wide backdrop-blur ${
-          tone === "dark" ? "border-white/20 bg-night/70 text-white/90" : "border-forest/20 bg-white/80 text-forest-950"
-        }`}
-      >
-        {children}
-      </div>
-    </Html>
+    <group ref={group} position={position}>
+      <Html center distanceFactor={4.2} zIndexRange={[10, 0]} style={{ pointerEvents: "none" }}>
+        <div
+          ref={el}
+          aria-hidden
+          className={`whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[10px] font-medium tracking-wide backdrop-blur ${
+            tone === "dark" ? "border-white/20 bg-night/70 text-white/90" : "border-forest/20 bg-white/80 text-forest-950"
+          }`}
+        >
+          {children}
+        </div>
+      </Html>
+    </group>
   );
 }
 
@@ -137,7 +149,6 @@ export default function TransformScene({ progress, quality }: { progress: Mutabl
   const smooth = useRef(progress.current);
   const look = useMemo(() => new THREE.Vector3(), []);
   const tmpA = useMemo(() => new THREE.Vector3(), []);
-  const tmpB = useMemo(() => new THREE.Vector3(), []);
   const bg = useMemo(() => new THREE.Color(), []);
   const fog = useMemo(() => new THREE.Fog("#07181a", 8, 24), []);
   const hemi = useRef<THREE.HemisphereLight>(null);
@@ -147,14 +158,16 @@ export default function TransformScene({ progress, quality }: { progress: Mutabl
   const landHeight = useMemo(() => makeHeightFn({ amp: 0.35, scale: 0.25, flat: { x: 0, z: 0.6, r: 2.4, h: 0.05 } }), []);
 
   useFrame(({ clock }, dt) => {
-    smooth.current = THREE.MathUtils.damp(smooth.current, progress.current, 4, dt);
-    const p = smooth.current;
-    const { i, f } = stageBlend(p);
-    tmpA.set(...CAMS[i].pos).lerp(tmpB.set(...CAMS[i + 1].pos), f);
-    // arc upward between stations for a crane-like travel
-    tmpA.y += Math.sin(f * Math.PI) * 1.2;
-    tmpA.z += Math.sin(f * Math.PI) * 1.5;
-    look.set(...CAMS[i].look).lerp(tmpB.set(...CAMS[i + 1].look), f);
+    smooth.current = THREE.MathUtils.damp(smooth.current, progress.current, 3.2, dt);
+    // Same phase function as the copy overlay, so camera and text stay in lockstep.
+    const phase = storyPhase(smooth.current);
+    const u = phase / (STAGES - 1);
+    POS_CURVE.getPoint(u, tmpA);
+    LOOK_CURVE.getPoint(u, look);
+    // Gentle crane lift while travelling between stations.
+    const between = Math.sin((phase % 1) * Math.PI);
+    tmpA.y += between * 0.9;
+    tmpA.z += between * 1.1;
     // Portrait: centre the subject in the upper half, copy sits below.
     if (size.width / size.height < 1) {
       tmpA.sub(look);
@@ -170,7 +183,7 @@ export default function TransformScene({ progress, quality }: { progress: Mutabl
     camera.lookAt(look);
 
     // Brighten into the final "new life" stage.
-    const light = THREE.MathUtils.smoothstep(p, 0.74, 0.97);
+    const light = storyLight(phase);
     bg.copy(DARK).lerp(LIGHT, light);
     scene.background = bg;
     fog.color.copy(bg);
@@ -207,10 +220,28 @@ export default function TransformScene({ progress, quality }: { progress: Mutabl
       <directionalLight ref={sun} position={[STAGE_X[4] + 6, 12, 8]} intensity={0.6} color="#fff1db" />
 
       {/* Industrial floor through stages 1–4 */}
-      <mesh rotation-x={-Math.PI / 2} position={[22, 0, 0]} receiveShadow>
-        <planeGeometry args={[54, 18]} />
+      <mesh rotation-x={-Math.PI / 2} position={[(STAGE_X[4] - 10) / 2 - 2.5, 0, 0]} receiveShadow>
+        <planeGeometry args={[STAGE_X[4] - 5, 18]} />
         <meshStandardMaterial color="#2a2f2d" roughness={0.95} />
       </mesh>
+
+      {/* One continuous material stream through every station: soil-brown until washing, clean afterwards */}
+      <FlowLine
+        points={[[1.1, 0.03, 0.75], [STAGE_X[1] * 0.45, 0.03, 1.1], [STAGE_X[1] - 3.2, 0.03, 0.7], [STAGE_X[1] + 2.4, 0.03, 0.9], [STAGE_X[2] - 2.6, 0.03, 1.0], [STAGE_X[2], 0.03, 1.2]]}
+        color="#9a7550"
+        radius={0.022}
+        speed={0.12}
+        density={14}
+        opacity={0.75}
+      />
+      <FlowLine
+        points={[[STAGE_X[2], 0.03, 1.2], [STAGE_X[2] + 3, 0.03, 1.1], [STAGE_X[3] - 2.8, 0.03, 2.2], [STAGE_X[3] + 2.6, 0.03, 2.2], [STAGE_X[4] - 3, 0.03, 1.8], [STAGE_X[4] - 1.6, 0.03, 1.6]]}
+        color="#c8d98a"
+        radius={0.022}
+        speed={0.12}
+        density={14}
+        opacity={0.75}
+      />
 
       {/* ── Stage 1: Arrival ─────────────────────────────── */}
       <group position={[STAGE_X[0], 0, 0]}>
@@ -328,9 +359,9 @@ export default function TransformScene({ progress, quality }: { progress: Mutabl
 
       {/* ── Stage 5: New life ────────────────────────────── */}
       <group position={[STAGE_X[4], 0, 0]}>
-        <mesh rotation-x={-Math.PI / 2} position={[1, 0.0, 0]}>
-          <planeGeometry args={[16, 28]} />
-          <meshStandardMaterial color="#6d8a52" roughness={1} />
+        <mesh rotation-x={-Math.PI / 2} position={[3, 0.0, 0]}>
+          <planeGeometry args={[18, 28]} />
+          <meshStandardMaterial color="#6f8c55" roughness={1} />
         </mesh>
         {/* road */}
         <mesh rotation-x={-Math.PI / 2} rotation-z={0.25} position={[0, 0.01, 0.6]}>
@@ -347,9 +378,11 @@ export default function TransformScene({ progress, quality }: { progress: Mutabl
         <House position={[-0.6, 0, -2.4]} s={1.2} color="#f1efe8" />
         <Pile position={[-1.6, 0, 1.6]} r={0.5} h={0.3} color="#9d978c" seed={41} />
         <Excavator position={[-2.5, 0, 1.4]} rotation={0.6} scale={1.1} animate />
-        <Pines count={Math.round(110 * k) + 20} area={[14, 8]} height={() => 0} avoid={[{ x: 0, z: 0.6, r: 1.2 }, { x: 2.2, z: -1.4, r: 2 }, { x: -2, z: 1.5, r: 1.2 }]} scale={1.05} seed={9} color="#2f5634" />
-        <group position={[0, 0, -4]}>
-          <Pines count={Math.round(90 * k) + 20} area={[16, 3]} height={landHeight} scale={1.4} seed={12} color="#28472d" />
+        <group position={[2.5, 0, -2.6]}>
+          <Forest count={Math.round(110 * k) + 30} area={[13, 5]} height={() => 0} avoid={[{ x: -0.9, z: -1.2, r: 1.2 }, { x: 0.3, z: -0.9, r: 1.0 }, { x: 1.1, z: -2.0, r: 1.1 }, { x: -3.1, z: -2.4, r: 0.9 }]} scale={0.62} seed={9} leafy={0.35} tint="#e6f0dc" />
+        </group>
+        <group position={[2, 0, -5]}>
+          <Forest count={Math.round(120 * k) + 30} area={[18, 3.5]} height={landHeight} scale={0.85} seed={12} leafy={0.2} tint="#d5e3cc" />
         </group>
         <Label position={[-1.6, 0.75, 1.6]} tone="light">
           Gjenvunne masser i nytt prosjekt

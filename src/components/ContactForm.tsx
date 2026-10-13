@@ -145,13 +145,12 @@ export default function ContactForm({
         );
       })}
 
-      {/* Honeypot — hidden from people and assistive tech */}
-      <div aria-hidden className="absolute -left-[9999px] h-px w-px overflow-hidden">
-        <label>
-          Nettside
-          <input type="text" name="website" tabIndex={-1} autoComplete="off" />
-        </label>
-      </div>
+      {/*
+        Honeypot. Removed from layout, the accessibility tree and the tab order:
+        `hidden` + display:none keeps it invisible even without CSS, and it carries no
+        visible label text. Bots that fill every input still populate it.
+      */}
+      <input type="text" name="website" defaultValue="" tabIndex={-1} autoComplete="off" aria-hidden hidden style={{ display: "none" }} />
 
       <div className="flex flex-col gap-4 sm:col-span-2 sm:flex-row sm:items-center sm:justify-between">
         <p className={`text-xs ${dark ? "text-white/50" : "text-graphite/70"}`}>

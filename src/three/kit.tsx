@@ -5,7 +5,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { forwardRef, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { fbm, mulberry32 } from "./noise";
-import { beltTexture, grainTexture, strataTexture } from "./textures";
+import { beltTexture, corrugatedTexture, grainTexture, strataTexture } from "./textures";
 
 /* ------------------------------------------------------------------ */
 /* Lighting                                                            */
@@ -329,7 +329,11 @@ export function EarthBlock({
     });
     const tex = strataTexture();
     const sm = new THREE.MeshStandardMaterial({ map: tex, bumpMap: tex, bumpScale: 2.2, roughness: 0.96, metalness: 0, side: THREE.DoubleSide });
-    const tm = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0, flatShading: false });
+    // Fine turf grain multiplied into the vertex colours gives the surface micro-detail.
+    const turf = grainTexture([236, 236, 230], "turf", 0.42).clone();
+    turf.repeat.set(W * 3, D * 3);
+    turf.needsUpdate = true;
+    const tm = new THREE.MeshStandardMaterial({ vertexColors: true, map: turf, bumpMap: turf, bumpScale: 0.8, roughness: 0.95, metalness: 0 });
     return { top: g, sides: sideGeos, sideMat: sm, topMat: tm };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [W, D, depth, segments]);
@@ -432,44 +436,74 @@ const metal = { roughness: 0.42, metalness: 0.55 };
 
 type V3 = [number, number, number];
 
-export const Hall = forwardRef<THREE.Group, { position?: V3; size?: V3; color?: string; roof?: string; rotation?: number; emissive?: string; emissiveIntensity?: number }>(
-  function Hall({ position = [0, 0, 0], size = [2, 1, 1.2], color = "#c9cbc4", roof = "#4b5350", rotation = 0, emissive = "#000000", emissiveIntensity = 0 }, ref) {
-    const [w, h, d] = size;
-    const roofGeo = useMemo(() => {
-      const s = new THREE.Shape();
-      s.moveTo(-d / 2 - 0.04, 0);
-      s.lineTo(0, h * 0.28);
-      s.lineTo(d / 2 + 0.04, 0);
-      s.lineTo(-d / 2 - 0.04, 0);
-      const g = new THREE.ExtrudeGeometry(s, { depth: w + 0.08, bevelEnabled: false });
-      g.translate(0, 0, -(w + 0.08) / 2);
-      g.rotateY(Math.PI / 2);
-      return g;
-    }, [w, h, d]);
-    return (
-      <group ref={ref} position={position} rotation-y={rotation}>
-        <mesh position={[0, h / 2, 0]} castShadow receiveShadow>
-          <boxGeometry args={[w, h, d]} />
-          <meshStandardMaterial color={color} roughness={0.6} metalness={0.25} emissive={emissive} emissiveIntensity={emissiveIntensity} />
-        </mesh>
-        <mesh geometry={roofGeo} position={[0, h, 0]} castShadow>
-          <meshStandardMaterial color={roof} {...metal} />
-        </mesh>
-        {/* façade ribs */}
-        {Array.from({ length: Math.max(2, Math.floor(w / 0.35)) }).map((_, i, arr) => (
-          <mesh key={i} position={[-w / 2 + (w / (arr.length - 1)) * i, h / 2, d / 2 + 0.005]}>
-            <boxGeometry args={[0.02, h, 0.01]} />
-            <meshStandardMaterial color="#8d918c" roughness={0.5} metalness={0.4} />
+export const Hall = forwardRef<
+  THREE.Group,
+  { position?: V3; size?: V3; color?: string; roof?: string; rotation?: number; emissive?: string; emissiveIntensity?: number; lit?: boolean }
+>(function Hall({ position = [0, 0, 0], size = [2, 1, 1.2], color = "#c9cbc4", roof = "#4b5350", rotation = 0, emissive = "#000000", emissiveIntensity = 0, lit = false }, ref) {
+  const [w, h, d] = size;
+  const roofGeo = useMemo(() => {
+    const s = new THREE.Shape();
+    s.moveTo(-d / 2 - 0.04, 0);
+    s.lineTo(0, h * 0.28);
+    s.lineTo(d / 2 + 0.04, 0);
+    s.lineTo(-d / 2 - 0.04, 0);
+    const g = new THREE.ExtrudeGeometry(s, { depth: w + 0.08, bevelEnabled: false });
+    g.translate(0, 0, -(w + 0.08) / 2);
+    g.rotateY(Math.PI / 2);
+    return g;
+  }, [w, h, d]);
+  const cladding = useMemo(() => {
+    const t = corrugatedTexture().clone();
+    t.repeat.set(Math.max(4, Math.round(w * 22)), 1);
+    t.needsUpdate = true;
+    return t;
+  }, [w]);
+  return (
+    <group ref={ref} position={position} rotation-y={rotation}>
+      <mesh position={[0, h / 2, 0]} castShadow receiveShadow>
+        <boxGeometry args={[w, h, d]} />
+        <meshStandardMaterial color={color} roughness={0.55} metalness={0.35} bumpMap={cladding} bumpScale={0.6} emissive={emissive} emissiveIntensity={emissiveIntensity} />
+      </mesh>
+      <mesh geometry={roofGeo} position={[0, h, 0]} castShadow>
+        <meshStandardMaterial color={roof} {...metal} />
+      </mesh>
+      {/* Window bands: warm interior light reads as an operating plant at dusk */}
+      {lit && (
+        <>
+          <mesh position={[0, h * 0.78, d / 2 + 0.004]}>
+            <planeGeometry args={[w * 0.86, h * 0.1]} />
+            <meshStandardMaterial color="#ffd9a0" emissive="#ffc77a" emissiveIntensity={2.2} toneMapped={false} />
           </mesh>
-        ))}
-        <mesh position={[w * 0.18, h * 0.32, d / 2 + 0.012]}>
-          <boxGeometry args={[w * 0.22, h * 0.64, 0.01]} />
-          <meshStandardMaterial color="#2a2f2e" roughness={0.6} metalness={0.3} />
-        </mesh>
-      </group>
-    );
-  },
-);
+          <mesh position={[w / 2 + 0.004, h * 0.78, 0]} rotation-y={Math.PI / 2}>
+            <planeGeometry args={[d * 0.8, h * 0.1]} />
+            <meshStandardMaterial color="#ffd9a0" emissive="#ffc77a" emissiveIntensity={2.2} toneMapped={false} />
+          </mesh>
+        </>
+      )}
+      <mesh position={[w * 0.18, h * 0.32, d / 2 + 0.006]}>
+        <planeGeometry args={[w * 0.22, h * 0.64]} />
+        <meshStandardMaterial color={lit ? "#5a4a33" : "#2a2f2e"} emissive={lit ? "#ffb35c" : "#000000"} emissiveIntensity={lit ? 0.45 : 0} roughness={0.6} metalness={0.3} />
+      </mesh>
+    </group>
+  );
+});
+
+/** Yard light: slim mast with a warm lamp and a short-range point light. */
+export function LightPole({ position = [0, 0, 0] as V3, h = 0.55, intensity = 0.6 }) {
+  return (
+    <group position={position}>
+      <mesh position={[0, h / 2, 0]}>
+        <cylinderGeometry args={[0.006, 0.009, h, 5]} />
+        <meshStandardMaterial color="#3d4542" metalness={0.6} roughness={0.4} />
+      </mesh>
+      <mesh position={[0, h, 0]}>
+        <sphereGeometry args={[0.018, 8, 6]} />
+        <meshStandardMaterial color="#fff1d6" emissive="#ffd59a" emissiveIntensity={3} toneMapped={false} />
+      </mesh>
+      <pointLight position={[0, h - 0.02, 0]} intensity={intensity} distance={1.4} decay={2} color="#ffcf8a" />
+    </group>
+  );
+}
 
 export function Silo({ position = [0, 0, 0] as V3, r = 0.25, h = 1.2, color = "#d7d9d3" }) {
   return (
