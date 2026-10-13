@@ -141,9 +141,10 @@ export function MaterialsScene({ quality, reducedMotion, selected }: P & { selec
     <>
       <StudioLights env={quality !== "low"} intensity={0.7} envIntensity={0.7} />
       <spotLight ref={key} position={[0, 5, 4.5]} angle={0.42} penumbra={0.75} intensity={reducedMotion ? 65 : 20} color="#fff3e2" distance={14} castShadow={quality === "high"} />
+      {/* Transparent floor that only receives shadows — samples sit on the page background */}
       <mesh rotation-x={-Math.PI / 2} position={[0, -0.001, 0]} receiveShadow>
         <circleGeometry args={[6, 64]} />
-        <meshStandardMaterial color="#141a19" roughness={0.4} metalness={0.3} />
+        <shadowMaterial transparent opacity={0.18} />
       </mesh>
       <group ref={group} position={[0, 0, -R + 0.9]}>
         {SAMPLES.map((id, i) => {
