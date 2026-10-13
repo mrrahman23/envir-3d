@@ -5,7 +5,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { forwardRef, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { fbm, mulberry32 } from "./noise";
-import { beltTexture, corrugatedTexture, grainTexture, strataTexture } from "./textures";
+import { beltTexture, corrugatedTexture, grainTexture, pbrTexture, STRATA_ASPECT, strataTextures } from "./textures";
 
 /* ------------------------------------------------------------------ */
 /* Lighting                                                            */
@@ -252,10 +252,16 @@ export function EarthBlock({
   rock = "#6e716b",
   pad,
   shadows = false,
+  clip,
+  surface = false,
 }: {
   size?: [number, number];
   depth?: number;
   height: HeightFn;
+  /** Clipping planes (Earth reveal). Requires gl.localClippingEnabled. */
+  clip?: THREE.Plane[];
+  /** Use the scanned terrain normal map for surface micro-relief. */
+  surface?: boolean;
   segments?: number;
   grass?: string;
   moss?: string;
@@ -312,7 +318,8 @@ export function EarthBlock({
         const z = z0 + (z1 - z0) * t;
         const h = height(x, z);
         const edgeLen = Math.hypot(x1 - x0, z1 - z0);
-        const u = (ei * 7.3 + t * edgeLen) / 2.6;
+        // One atlas repeat spans (depth + maxH) * aspect world units, so features stay round.
+        const u = (ei * 7.3 + t * edgeLen) / ((depth + maxH) * STRATA_ASPECT);
         verts.push(x, h, z, x, -depth, z);
         uvs.push(u, (h + depth) / (depth + maxH), u, 0);
         if (i < n) {
@@ -327,13 +334,20 @@ export function EarthBlock({
       sg.computeVertexNormals();
       sideGeos.push(sg);
     });
-    const tex = strataTexture();
-    const sm = new THREE.MeshStandardMaterial({ map: tex, bumpMap: tex, bumpScale: 2.2, roughness: 0.96, metalness: 0, side: THREE.DoubleSide });
+    const { map, normalMap } = strataTextures();
+    const sm = new THREE.MeshStandardMaterial({ map, normalMap, normalScale: new THREE.Vector2(1.2, 1.2), roughness: 0.95, metalness: 0, side: THREE.DoubleSide, clippingPlanes: clip ?? null });
     // Fine turf grain multiplied into the vertex colours gives the surface micro-detail.
     const turf = grainTexture([236, 236, 230], "turf", 0.42).clone();
     turf.repeat.set(W * 3, D * 3);
     turf.needsUpdate = true;
-    const tm = new THREE.MeshStandardMaterial({ vertexColors: true, map: turf, bumpMap: turf, bumpScale: 0.8, roughness: 0.95, metalness: 0 });
+    const tm = new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      map: turf,
+      roughness: 0.95,
+      metalness: 0,
+      clippingPlanes: clip ?? null,
+      ...(surface ? { normalMap: pbrTexture("/assets/earth/terrain-normal.webp", { repeat: [W * 1.2, D * 1.2] }), normalScale: new THREE.Vector2(1.4, 1.4) } : { bumpMap: turf, bumpScale: 0.8 }),
+    });
     return { top: g, sides: sideGeos, sideMat: sm, topMat: tm };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [W, D, depth, segments]);
@@ -353,7 +367,7 @@ export function EarthBlock({
       ))}
       <mesh position={[0, -depth, 0]} rotation-x={Math.PI / 2}>
         <planeGeometry args={[W, D]} />
-        <meshStandardMaterial color="#1e1f20" roughness={1} side={THREE.DoubleSide} />
+        <meshStandardMaterial color="#1e1f20" roughness={1} side={THREE.DoubleSide} clippingPlanes={clip ?? null} />
       </mesh>
     </group>
   );
@@ -362,71 +376,6 @@ export function EarthBlock({
 /* ------------------------------------------------------------------ */
 /* Vegetation                                                          */
 /* ------------------------------------------------------------------ */
-
-export function Pines({
-  count = 80,
-  area,
-  height,
-  avoid = [],
-  scale = 1,
-  seed = 3,
-  color = "#1f3a28",
-}: {
-  count?: number;
-  area: [number, number];
-  height: HeightFn;
-  avoid?: { x: number; z: number; r: number }[];
-  scale?: number;
-  seed?: number;
-  color?: string;
-}) {
-  const crowns = useRef<THREE.InstancedMesh>(null);
-  const trunks = useRef<THREE.InstancedMesh>(null);
-  const placements = useMemo(() => {
-    const rnd = mulberry32(seed);
-    const out: { x: number; y: number; z: number; s: number; r: number }[] = [];
-    let guard = 0;
-    while (out.length < count && guard++ < count * 20) {
-      const x = (rnd() - 0.5) * area[0];
-      const z = (rnd() - 0.5) * area[1];
-      if (avoid.some((a) => Math.hypot(x - a.x, z - a.z) < a.r)) continue;
-      if (fbm(x * 0.6 + 10, z * 0.6, 2) < 0.42) continue; // clustered forest patches
-      out.push({ x, z, y: height(x, z), s: (0.55 + rnd() * 0.7) * scale, r: rnd() * Math.PI });
-    }
-    return out;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [count, seed]);
-  useLayoutEffect(() => {
-    const m = new THREE.Matrix4();
-    const q = new THREE.Quaternion();
-    const tint = new THREE.Color();
-    placements.forEach((p, i) => {
-      q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), p.r);
-      m.compose(new THREE.Vector3(p.x, p.y + 0.32 * p.s, p.z), q, new THREE.Vector3(p.s, p.s, p.s));
-      crowns.current?.setMatrixAt(i, m);
-      crowns.current?.setColorAt(i, tint.set(color).multiplyScalar(0.8 + ((i * 37) % 10) / 25));
-      m.compose(new THREE.Vector3(p.x, p.y + 0.05 * p.s, p.z), q, new THREE.Vector3(p.s, p.s, p.s));
-      trunks.current?.setMatrixAt(i, m);
-    });
-    if (crowns.current) {
-      crowns.current.instanceMatrix.needsUpdate = true;
-      if (crowns.current.instanceColor) crowns.current.instanceColor.needsUpdate = true;
-    }
-    if (trunks.current) trunks.current.instanceMatrix.needsUpdate = true;
-  }, [placements, color]);
-  return (
-    <group>
-      <instancedMesh ref={crowns} args={[undefined, undefined, placements.length]} castShadow>
-        <coneGeometry args={[0.12, 0.55, 7]} />
-        <meshStandardMaterial roughness={0.9} />
-      </instancedMesh>
-      <instancedMesh ref={trunks} args={[undefined, undefined, placements.length]}>
-        <cylinderGeometry args={[0.012, 0.018, 0.12, 5]} />
-        <meshStandardMaterial color="#3b2a1d" roughness={1} />
-      </instancedMesh>
-    </group>
-  );
-}
 
 /* ------------------------------------------------------------------ */
 /* Industrial kit                                                      */
@@ -625,49 +574,6 @@ export function Pile({ position = [0, 0, 0] as V3, r = 0.5, h = 0.4, color = "#a
     <mesh geometry={geo} position={position} castShadow receiveShadow>
       <meshStandardMaterial map={map} roughness={0.98} metalness={0} />
     </mesh>
-  );
-}
-
-/** Instanced rock mound — used for aggregate fraction samples. */
-export function RockMound({
-  count = 200,
-  radius = 0.6,
-  height = 0.5,
-  size = [0.03, 0.06] as [number, number],
-  colors = ["#8b8a85", "#a7a39a", "#6d6b66", "#bcb5a6"],
-  seed = 4,
-  position = [0, 0, 0] as V3,
-}) {
-  const ref = useRef<THREE.InstancedMesh>(null);
-  const geo = useMemo(() => new THREE.DodecahedronGeometry(1, 0), []);
-  useLayoutEffect(() => {
-    const rnd = mulberry32(seed);
-    const m = new THREE.Matrix4();
-    const q = new THREE.Quaternion();
-    const e = new THREE.Euler();
-    const c = new THREE.Color();
-    for (let i = 0; i < count; i++) {
-      // Stack in a cone: denser at the bottom.
-      const t = Math.pow(rnd(), 0.6);
-      const r = radius * Math.sqrt(rnd()) * (1 - t * 0.85);
-      const a = rnd() * Math.PI * 2;
-      const s = size[0] + rnd() * (size[1] - size[0]);
-      const y = t * height + s * 0.6;
-      e.set(rnd() * 6, rnd() * 6, rnd() * 6);
-      q.setFromEuler(e);
-      m.compose(new THREE.Vector3(Math.cos(a) * r, y, Math.sin(a) * r), q, new THREE.Vector3(s * (0.8 + rnd() * 0.5), s * (0.6 + rnd() * 0.4), s * (0.8 + rnd() * 0.5)));
-      ref.current?.setMatrixAt(i, m);
-      ref.current?.setColorAt(i, c.set(colors[Math.floor(rnd() * colors.length)]).multiplyScalar(0.85 + rnd() * 0.3));
-    }
-    if (ref.current) {
-      ref.current.instanceMatrix.needsUpdate = true;
-      if (ref.current.instanceColor) ref.current.instanceColor.needsUpdate = true;
-    }
-  }, [count, radius, height, size, colors, seed]);
-  return (
-    <instancedMesh ref={ref} args={[geo, undefined, count]} position={position} castShadow>
-      <meshStandardMaterial roughness={0.85} metalness={0.02} flatShading />
-    </instancedMesh>
   );
 }
 

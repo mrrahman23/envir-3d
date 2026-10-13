@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import { useRef, useState, useSyncExternalStore } from "react";
 import { facilityZones, type FacilityZoneId } from "@/content/site";
 import SceneFrame from "@/components/three/SceneFrame";
@@ -94,7 +95,7 @@ export default function Facility() {
                   alwaysRender
                   label={`Illustrativ 3D-modell av Envirs anlegg. ${zone ? `Valgt område: ${zone.label}.` : "Oversikt over seks områder."}`}
                   camera={{ fov: 32, position: [0, 9.5, 12.5] }}
-                  poster={<Plan active={active} onSelect={setActive} decorative />}
+                  poster={<Image src="/assets/posters/facility.webp" alt="" fill sizes="(min-width:1024px) 70vw, 100vw" quality={80} className="object-cover" />}
                 >
                   {(ctx) => <FacilityScene {...ctx} active={active} preview={preview} onSelect={setActive} controls={finePointer} labels={LABELS} />}
                 </SceneFrame>
@@ -105,7 +106,7 @@ export default function Facility() {
               )}
 
               {/* In-model controls */}
-              <div className="pointer-events-none absolute inset-x-3 top-3 flex items-start justify-between gap-3 sm:inset-x-4 sm:top-4">
+              <div data-scene-overlay className="pointer-events-none absolute inset-x-3 top-3 flex items-start justify-between gap-3 sm:inset-x-4 sm:top-4">
                 <p className="whitespace-nowrap rounded-full bg-night/60 px-3 py-1.5 text-[0.68rem] font-medium uppercase tracking-[0.14em] text-white/80 backdrop-blur">
                   {zone ? (
                     <>
@@ -126,7 +127,7 @@ export default function Facility() {
                   </button>
                 )}
               </div>
-              <div className="absolute bottom-3 right-3 flex gap-2 sm:bottom-4 sm:right-4">
+              <div data-scene-overlay className="absolute bottom-3 right-3 flex gap-2 sm:bottom-4 sm:right-4">
                 <button type="button" onClick={() => step(-1)} aria-label="Forrige område" className="h-10 w-10 rounded-full border border-white/25 bg-night/70 text-white backdrop-blur hover:border-lime">
                   ←
                 </button>

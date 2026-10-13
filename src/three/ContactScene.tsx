@@ -5,7 +5,8 @@ import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { Quality } from "@/lib/quality";
 import { tierScale } from "@/lib/quality";
-import { Conveyor, EarthBlock, Hall, makeHeightFn, Pile, Pines, Silo, StudioLights } from "./kit";
+import { Conveyor, EarthBlock, Hall, makeHeightFn, Pile, Silo, StudioLights } from "./kit";
+import { Forest } from "./nature";
 
 const PAD = { x: 1.6, z: -0.3, r: 1.5, h: 0.22 };
 
@@ -32,8 +33,8 @@ export default function ContactScene({ quality, reducedMotion }: { quality: Qual
       <StudioLights env={quality !== "low"} intensity={1.35} warm="#fff6e8" cool="#cfe8f4" envIntensity={1} />
       <hemisphereLight args={["#ffffff", "#9fb08f", 0.9]} />
       <group ref={group} rotation-y={-0.35}>
-        <EarthBlock size={[9, 5.5]} depth={0.9} height={height} segments={quality === "low" ? 64 : 100} grass="#5f8a47" moss="#86a85a" rock="#9aa093" pad={{ ...PAD, color: "#b9b8ad" }} />
-        <Pines count={Math.round(420 * k) + 80} area={[8.6, 5.2]} height={height} avoid={[{ x: PAD.x, z: PAD.z, r: PAD.r + 0.1 }]} scale={0.48} color="#2f5a35" seed={17} />
+        <EarthBlock surface={quality !== "low"} size={[9, 5.5]} depth={0.9} height={height} segments={quality === "low" ? 64 : 100} grass="#5f8a47" moss="#86a85a" rock="#9aa093" pad={{ ...PAD, color: "#b9b8ad" }} />
+        <Forest count={Math.round(420 * k) + 80} area={[8.6, 5.2]} height={height} avoid={[{ x: PAD.x, z: PAD.z, r: PAD.r + 0.1 }]} scale={0.4} leafy={0.3} tint="#e9f2df" seed={17} />
         <group position={[PAD.x, PAD.h, PAD.z]}>
           <Hall position={[-0.2, 0, -0.45]} size={[1.3, 0.42, 0.62]} color="#f2f2ee" roof="#57605c" />
           <Silo position={[-1.05, 0, -0.3]} r={0.11} h={0.62} color="#f0f1ed" />

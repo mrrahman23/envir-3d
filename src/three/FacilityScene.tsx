@@ -1,6 +1,6 @@
 "use client";
 
-import { Html, OrbitControls } from "@react-three/drei";
+import { OrbitControls } from "@react-three/drei";
 import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import * as THREE from "three";
@@ -9,6 +9,8 @@ import type { Quality } from "@/lib/quality";
 import { tierScale } from "@/lib/quality";
 import { Conveyor, DustField, Hall, Pile, Ship, Silo, StudioLights, Tank, Truck, Water } from "./kit";
 import { Forest } from "./nature";
+import ScreenLabel from "./ScreenLabel";
+import { pbrTexture } from "./textures";
 
 type V3 = [number, number, number];
 
@@ -109,22 +111,20 @@ function Zone({
         <circleGeometry args={[r, 24]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
-      <Html position={[0, id === "vask" ? 2.1 : 1.35, 0]} center zIndexRange={[20, 0]}>
-        <button
-          type="button"
-          tabIndex={-1}
-          aria-hidden
-          onClick={() => onSelect(id)}
-          onPointerEnter={() => onHover(id)}
-          onPointerLeave={() => onHover(null)}
-          className={`flex h-8 items-center gap-2 whitespace-nowrap rounded-full border pl-[3px] text-xs font-semibold shadow-lg transition-all duration-300 ${
-            active ? "border-lime bg-lime pr-3 text-forest-950" : expanded ? "border-lime/70 bg-night/85 pr-3 text-white backdrop-blur" : "border-white/40 bg-night/75 pr-[3px] text-white backdrop-blur"
-          }`}
-        >
-          <span className={`flex h-6 w-6 items-center justify-center rounded-full ${active ? "bg-forest-950/10" : "bg-white/10"}`}>{index + 1}</span>
-          <span className={`overflow-hidden transition-[max-width,opacity] duration-300 ${expanded ? "max-w-[10rem] opacity-100" : "max-w-0 opacity-0"}`}>{label}</span>
-        </button>
-      </Html>
+      <ScreenLabel
+        position={[0, id === "vask" ? 2.1 : 1.35, 0]}
+        badge={String(index + 1)}
+        text={label}
+        onClick={() => onSelect(id)}
+        onHover={(on) => onHover(on ? id : null)}
+        zIndex={20}
+        className={`group flex h-8 items-center gap-2 whitespace-nowrap rounded-full border pl-[3px] text-xs font-semibold shadow-lg transition-[background-color,border-color,padding] duration-300 ${
+          active ? "border-lime bg-lime pr-3 text-forest-950" : expanded ? "border-lime/70 bg-night/85 pr-3 text-white backdrop-blur" : "border-white/40 bg-night/75 pr-[3px] text-white backdrop-blur"
+        } [&>span:last-child]:overflow-hidden [&>span:last-child]:transition-[max-width,opacity] [&>span:last-child]:duration-300 ${
+          expanded ? "[&>span:last-child]:max-w-[10rem] [&>span:last-child]:opacity-100" : "[&>span:last-child]:max-w-0 [&>span:last-child]:opacity-0"
+        }`}
+        badgeClassName={`flex h-6 w-6 items-center justify-center rounded-full ${active ? "bg-forest-950/10" : "bg-white/10"}`}
+      />
     </group>
   );
 }
@@ -236,9 +236,15 @@ export default function FacilityScene({
         <planeGeometry args={[16, 8]} />
         <meshStandardMaterial color="#4a514c" roughness={0.95} />
       </mesh>
-      <mesh rotation-x={-Math.PI / 2} position={[0, 0.005, -0.8]}>
+      {/* Concrete yard — scanned CC0 concrete, tiled ~1 m per repeat */}
+      <mesh rotation-x={-Math.PI / 2} position={[0, 0.005, -0.8]} receiveShadow>
         <planeGeometry args={[11.5, 5.6]} />
-        <meshStandardMaterial color="#6c706a" roughness={0.9} />
+        <meshStandardMaterial
+          color="#d4d6d0"
+          map={pbrTexture("/assets/facility/concrete-albedo.webp", { repeat: [5.75, 2.8], srgb: true })}
+          normalMap={pbrTexture("/assets/facility/concrete-normal.webp", { repeat: [5.75, 2.8] })}
+          roughness={0.88}
+        />
       </mesh>
       <mesh rotation-x={-Math.PI / 2} position={[0, 0.002, -4.4]}>
         <planeGeometry args={[16, 2.2]} />

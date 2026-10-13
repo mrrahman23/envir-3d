@@ -88,6 +88,7 @@ export function Forest({
   leafy = 0.25,
   tint = "#ffffff",
   castShadow = false,
+  clip,
 }: {
   count?: number;
   area: [number, number];
@@ -100,6 +101,7 @@ export function Forest({
   /** Multiplies all foliage colours (e.g. brighter for daylight scenes). */
   tint?: string;
   castShadow?: boolean;
+  clip?: THREE.Plane[];
 }) {
   const firRef = useRef<THREE.InstancedMesh>(null);
   const leafRef = useRef<THREE.InstancedMesh>(null);
@@ -155,12 +157,12 @@ export function Forest({
     <group>
       {firs.length > 0 && (
         <instancedMesh ref={firRef} args={[firGeo, undefined, firs.length]} castShadow={castShadow}>
-          <meshStandardMaterial vertexColors roughness={0.92} metalness={0} flatShading />
+          <meshStandardMaterial vertexColors roughness={0.92} metalness={0} flatShading clippingPlanes={clip ?? null} />
         </instancedMesh>
       )}
       {leaves.length > 0 && (
         <instancedMesh ref={leafRef} args={[leafGeo, undefined, leaves.length]} castShadow={castShadow}>
-          <meshStandardMaterial vertexColors roughness={0.88} metalness={0} flatShading />
+          <meshStandardMaterial vertexColors roughness={0.88} metalness={0} flatShading clippingPlanes={clip ?? null} />
         </instancedMesh>
       )}
     </group>

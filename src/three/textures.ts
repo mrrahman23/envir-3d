@@ -11,19 +11,31 @@ function canvas(w: number, h: number) {
   return [c, c.getContext("2d")!] as const;
 }
 
-export const STRATA_URL = "/textures/strata.webp";
-
-/** Soil cross-section strata (pre-baked, see src/three/strata.ts). Loads asynchronously. */
-export function strataTexture(): THREE.Texture {
-  const key = "strata";
+/** Cached loader for the optimised PBR textures in public/assets (CC0 scans, see ASSETS.md). */
+export function pbrTexture(url: string, { repeat = 1, srgb = false }: { repeat?: number | [number, number]; srgb?: boolean } = {}): THREE.Texture {
+  const r = Array.isArray(repeat) ? repeat : [repeat, repeat];
+  const key = `${url}|${r.join("x")}`;
   if (cache.has(key)) return cache.get(key)!;
-  const tex = new THREE.TextureLoader().load(STRATA_URL);
-  tex.flipY = true;
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.wrapS = THREE.RepeatWrapping;
+  const tex = new THREE.TextureLoader().load(url);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(r[0], r[1]);
   tex.anisotropy = 4;
+  if (srgb) tex.colorSpace = THREE.SRGBColorSpace;
   cache.set(key, tex);
   return tex;
+}
+
+/** Earth cross-section atlas baked from scanned soil, sand, gravel and rock (scripts/bake-earth.mjs). */
+export const STRATA_ALBEDO = "/assets/earth/strata-albedo.webp";
+export const STRATA_NORMAL = "/assets/earth/strata-normal.webp";
+/** Width / height of the strata atlas — keeps stones round on the cut faces. */
+export const STRATA_ASPECT = 768 / 1728;
+
+export function strataTextures() {
+  const map = pbrTexture(STRATA_ALBEDO, { srgb: true });
+  const normalMap = pbrTexture(STRATA_NORMAL);
+  map.wrapT = normalMap.wrapT = THREE.ClampToEdgeWrapping;
+  return { map, normalMap };
 }
 
 /** Ribbed rubber conveyor belt (scroll via offset.x). */

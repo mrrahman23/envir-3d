@@ -69,7 +69,7 @@ export default function Services() {
                   label={`3D-illustrasjon av gjenvunne fraksjoner. Valgt: ${product.name}.`}
                   camera={{ fov: 30, position: [0, 1.5, 4.4] }}
                   alwaysRender
-                  poster={<Poster src={product.image} alt={product.name} dim={false} />}
+                  poster={<div className="absolute inset-0 flex items-center justify-center bg-[radial-gradient(60%_60%_at_50%_60%,#1d2624_0%,#0d1312_70%)]"><Image src={`/assets/materials/renders/${product.id}.webp`} alt="" width={800} height={600} sizes="40vw" quality={80} className="w-[62%]" /></div>}
                 >
                   {(ctx) => <Materials {...ctx} selected={fraction} />}
                 </SceneFrame>

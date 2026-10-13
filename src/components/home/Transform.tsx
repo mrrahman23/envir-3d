@@ -104,7 +104,7 @@ function ScrollStory() {
           className="absolute inset-0"
           label="Kunstnerisk 3D-visualisering av gjenvinningsprosessen i fem steg: mottak, sortering, vask og rensing, finsortering og ny bruk."
           camera={{ fov: 38, position: [-1.4, 2.7, 7.0] }}
-          poster={<div className="absolute inset-0 bg-night" />}
+          poster={<Image src="/assets/posters/transform.webp" alt="" fill sizes="100vw" quality={80} className="object-cover" />}
         >
           {({ quality }) => <TransformScene progress={progress} quality={quality} />}
         </SceneFrame>

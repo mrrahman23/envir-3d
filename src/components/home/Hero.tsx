@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import Image from "next/image";
+import Image, { getImageProps } from "next/image";
 import { useState } from "react";
 import { company, hero } from "@/content/site";
 import SceneFrame from "@/components/three/SceneFrame";
@@ -23,28 +23,15 @@ export default function Hero() {
         className="absolute inset-0 -z-10"
         label="3D-illustrasjon: et tverrsnitt av jord med lag av matjord, leire, sand, grus og fjell. Et gjenvinningsanlegg vokser fram på overflaten."
         camera={{ fov: 34, position: [-1.15, -0.95, 3.0] }}
-        poster={
-          <>
-            <Image
-              src="/assets/envir/fremside.webp"
-              alt=""
-              fill
-              preload
-              sizes="100vw"
-              quality={70}
-              className="object-cover opacity-55"
-            />
-            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(7,24,26,0.35)_0%,rgba(7,24,26,0.2)_40%,#07181a_100%)]" />
-          </>
-        }
+        poster={canRender3D(quality) || quality === "pending" ? <HeroPoster /> : <PhotoPoster />}
       >
         {(ctx) => <HeroScene {...ctx} />}
       </SceneFrame>
 
       {/* Legibility scrim for the headline column */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-[5] bg-[linear-gradient(90deg,rgba(7,24,26,0.92)_0%,rgba(7,24,26,0.6)_38%,rgba(7,24,26,0)_70%)] max-lg:bg-[linear-gradient(180deg,rgba(7,24,26,0.1)_0%,rgba(7,24,26,0.75)_55%,rgba(7,24,26,0.95)_100%)]" />
+      <div aria-hidden data-scene-overlay className="pointer-events-none absolute inset-0 -z-[5] bg-[linear-gradient(90deg,rgba(7,24,26,0.92)_0%,rgba(7,24,26,0.6)_38%,rgba(7,24,26,0)_70%)] max-lg:bg-[linear-gradient(180deg,rgba(7,24,26,0.1)_0%,rgba(7,24,26,0.75)_55%,rgba(7,24,26,0.95)_100%)]" />
 
-      <div className="relative mx-auto flex w-full max-w-[1440px] flex-1 flex-col justify-end px-4 pb-24 pt-[calc(var(--nav-h)+2rem)] sm:px-6 sm:pb-28 lg:justify-center lg:px-10 lg:pb-16">
+      <div data-scene-overlay className="relative mx-auto flex w-full max-w-[1440px] flex-1 flex-col justify-end px-4 pb-24 pt-[calc(var(--nav-h)+2rem)] sm:px-6 sm:pb-28 lg:justify-center lg:px-10 lg:pb-16">
         <div className="max-w-[40rem] xl:max-w-[44rem]">
           <p className="hero-in eyebrow flex items-center gap-3 text-lime" style={{ animationDelay: "0.2s" }}>
             <span aria-hidden className="inline-block h-px w-8 bg-current" />
@@ -79,7 +66,7 @@ export default function Hero() {
         </div>
       </div>
 
-      <div className="relative mx-auto flex w-full max-w-[1440px] items-end justify-between gap-6 px-4 pb-7 sm:px-6 lg:px-10">
+      <div data-scene-overlay className="relative mx-auto flex w-full max-w-[1440px] items-end justify-between gap-6 px-4 pb-7 sm:px-6 lg:px-10">
         <p className="hero-in display text-[1.05rem] font-medium tracking-tight text-white/85" style={{ animationDelay: "1.1s" }}>
           {hero.caption}
         </p>
@@ -102,11 +89,36 @@ export default function Hero() {
       </div>
       {/* Seamless hand-off into the transformation sequence */}
       <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 -z-[4] h-40 bg-[linear-gradient(180deg,rgba(7,24,26,0)_0%,#07181a_100%)]" />
-      <p className="absolute right-4 top-[calc(var(--nav-h)+12px)] text-[0.68rem] uppercase tracking-[0.18em] text-white/55 sm:right-6 lg:right-10">
+      <p data-scene-overlay className="absolute right-4 top-[calc(var(--nav-h)+12px)] text-[0.68rem] uppercase tracking-[0.18em] text-white/55 sm:right-6 lg:right-10">
         {canRender3D(quality) ? "3D-illustrasjon" : "Foto: Envir"}
       </p>
 
       <FilmDialog open={film} onClose={() => setFilm(false)} src={company.film} title="Envir presentasjonsfilm" />
     </section>
+  );
+}
+
+/** Rendered still of the settled 3D scene (scripts/render-assets.mjs) — the live canvas fades in over it seamlessly. */
+function HeroPoster() {
+  const common = { alt: "", sizes: "100vw", quality: 80 } as const;
+  const { props: { srcSet: desktop } } = getImageProps({ ...common, src: "/assets/posters/hero-desktop.webp", width: 1440, height: 900 });
+  const { props: { srcSet: mobile, ...rest } } = getImageProps({ ...common, src: "/assets/posters/hero-mobile.webp", width: 780, height: 1688 });
+  return (
+    <picture>
+      <source media="(min-aspect-ratio: 1/1)" srcSet={desktop} />
+      <source srcSet={mobile} />
+      {/* eslint-disable-next-line jsx-a11y/alt-text */}
+      <img {...rest} fetchPriority="high" className="absolute inset-0 h-full w-full object-cover" />
+    </picture>
+  );
+}
+
+/** Without WebGL: official Envir photography (labelled "Foto: Envir"). */
+function PhotoPoster() {
+  return (
+    <>
+      <Image src="/assets/envir/fremside.webp" alt="" fill sizes="100vw" quality={70} className="object-cover opacity-55" />
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(7,24,26,0.35)_0%,rgba(7,24,26,0.2)_40%,#07181a_100%)]" />
+    </>
   );
 }

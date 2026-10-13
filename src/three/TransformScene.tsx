@@ -1,6 +1,5 @@
 "use client";
 
-import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useMemo, useRef, type MutableRefObject } from "react";
 import * as THREE from "three";
@@ -8,8 +7,11 @@ import type { Quality } from "@/lib/quality";
 import { tierScale } from "@/lib/quality";
 import { STAGES, storyLight, storyPhase } from "@/lib/story";
 import { mulberry32 } from "./noise";
-import { Conveyor, DustField, Excavator, FlowLine, Hall, makeHeightFn, Pile, RockMound, StudioLights, Tank, Truck, WashDrum } from "./kit";
+import { Conveyor, DustField, Excavator, FlowLine, Hall, makeHeightFn, Pile, StudioLights, Tank, Truck, WashDrum } from "./kit";
 import { Forest } from "./nature";
+import ScreenLabel from "./ScreenLabel";
+import { MaterialSample } from "./materials";
+import { pbrTexture } from "./textures";
 
 // Stations sit close enough that neighbours and the material stream stay in frame while travelling.
 export const STAGE_X = [0, 9.5, 19, 28.5, 38];
@@ -30,30 +32,17 @@ const POS_CURVE = new THREE.CatmullRomCurve3(CAMS.map((c) => new THREE.Vector3(.
 const LOOK_CURVE = new THREE.CatmullRomCurve3(CAMS.map((c) => new THREE.Vector3(...c.look)), false, "centripetal");
 
 /** In-scene caption that fades out with distance, so only the current station is labelled. */
-function Label({ position, children, tone = "dark" }: { position: [number, number, number]; children: React.ReactNode; tone?: "dark" | "light" }) {
-  const group = useRef<THREE.Group>(null);
-  const el = useRef<HTMLDivElement>(null);
-  const world = useMemo(() => new THREE.Vector3(), []);
-  useFrame(({ camera }) => {
-    if (!group.current || !el.current) return;
-    group.current.getWorldPosition(world);
-    const o = 1 - THREE.MathUtils.smoothstep(world.distanceTo(camera.position), 6.5, 9);
-    el.current.style.opacity = o.toFixed(2);
-  });
+function Label({ position, children, tone = "dark" }: { position: [number, number, number]; children: string; tone?: "dark" | "light" }) {
   return (
-    <group ref={group} position={position}>
-      <Html center distanceFactor={4.2} zIndexRange={[10, 0]} style={{ pointerEvents: "none" }}>
-        <div
-          ref={el}
-          aria-hidden
-          className={`whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[10px] font-medium tracking-wide backdrop-blur ${
-            tone === "dark" ? "border-white/20 bg-night/70 text-white/90" : "border-forest/20 bg-white/80 text-forest-950"
-          }`}
-        >
-          {children}
-        </div>
-      </Html>
-    </group>
+    <ScreenLabel
+      position={position}
+      text={children}
+      distanceScale={6}
+      fade={[6.5, 9]}
+      className={`whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[10px] font-medium tracking-wide backdrop-blur ${
+        tone === "dark" ? "border-white/20 bg-night/70 text-white/90" : "border-forest/20 bg-white/80 text-forest-950"
+      }`}
+    />
   );
 }
 
@@ -206,11 +195,11 @@ export default function TransformScene({ progress, quality }: { progress: Mutabl
   const beltEnd = useMemo(() => new THREE.Vector3(STAGE_X[1] + 0.1, 1.05, 0), []);
 
   const fractions = [
-    { label: "0–2 mm", kind: "sand" as const, color: "#ada18b" },
-    { label: "2–8 mm", size: [0.012, 0.022] as [number, number], n: 900, colors: ["#a59c8c", "#8f877a", "#c1b8a6"] },
-    { label: "8–16 mm", size: [0.022, 0.04] as [number, number], n: 520, colors: ["#8d8b85", "#a9a59c", "#6f6d68"] },
-    { label: "16–32 mm", size: [0.04, 0.07] as [number, number], n: 260, colors: ["#8b8a85", "#a7a39a", "#6d6b66"] },
-    { label: "32–64 mm", size: [0.07, 0.12] as [number, number], n: 110, colors: ["#7f7d77", "#9d9a92", "#64625d"] },
+    { label: "0–2 mm", id: "0-2" as const },
+    { label: "2–8 mm", id: "2-8" as const },
+    { label: "8–16 mm", id: "8-16" as const },
+    { label: "16–32 mm", id: "16-32" as const },
+    { label: "32–64 mm", id: "32-64" as const },
   ];
 
   return (
@@ -222,7 +211,12 @@ export default function TransformScene({ progress, quality }: { progress: Mutabl
       {/* Industrial floor through stages 1–4 */}
       <mesh rotation-x={-Math.PI / 2} position={[(STAGE_X[4] - 10) / 2 - 2.5, 0, 0]} receiveShadow>
         <planeGeometry args={[STAGE_X[4] - 5, 18]} />
-        <meshStandardMaterial color="#2a2f2d" roughness={0.95} />
+        <meshStandardMaterial
+          color="#4a4f4c"
+          map={pbrTexture("/assets/facility/concrete-albedo.webp", { repeat: [(STAGE_X[4] - 5) / 2.2, 18 / 2.2], srgb: true })}
+          normalMap={pbrTexture("/assets/facility/concrete-normal.webp", { repeat: [(STAGE_X[4] - 5) / 2.2, 18 / 2.2] })}
+          roughness={0.92}
+        />
       </mesh>
 
       {/* One continuous material stream through every station: soil-brown until washing, clean afterwards */}
@@ -337,19 +331,7 @@ export default function TransformScene({ progress, quality }: { progress: Mutabl
           const z = -Math.cos(a) * 2.2 + 1.6;
           return (
             <group key={fr.label} position={[x, 0, z]}>
-              <mesh position={[0, 0.07, 0]}>
-                <cylinderGeometry args={[0.42, 0.45, 0.14, 40]} />
-                <meshStandardMaterial color="#1c2422" metalness={0.4} roughness={0.35} />
-              </mesh>
-              <mesh position={[0, 0.142, 0]} rotation-x={-Math.PI / 2}>
-                <ringGeometry args={[0.4, 0.43, 48]} />
-                <meshBasicMaterial color="#b9d95a" />
-              </mesh>
-              {fr.kind === "sand" ? (
-                <Pile position={[0, 0.14, 0]} r={0.36} h={0.28} color={fr.color} seed={30} grain={0.18} />
-              ) : (
-                <RockMound position={[0, 0.14, 0]} count={Math.round(fr.n! * (0.4 + 0.6 * k))} radius={0.36} height={0.25} size={fr.size} colors={fr.colors} seed={j + 2} />
-              )}
+              <MaterialSample fraction={fr.id} radius={0.38} budget={0.3 + 0.7 * k} seed={j + 2} ring="#b9d95a" />
               <Label position={[0, 0.65, 0]}>{fr.label}</Label>
             </group>
           );
@@ -366,7 +348,12 @@ export default function TransformScene({ progress, quality }: { progress: Mutabl
         {/* road */}
         <mesh rotation-x={-Math.PI / 2} rotation-z={0.25} position={[0, 0.01, 0.6]}>
           <planeGeometry args={[16, 0.9]} />
-          <meshStandardMaterial color="#3a3d3c" roughness={0.85} />
+          <meshStandardMaterial
+            color="#7b7e7c"
+            map={pbrTexture("/assets/facility/asphalt-albedo.webp", { repeat: [18, 1], srgb: true })}
+            normalMap={pbrTexture("/assets/facility/asphalt-normal.webp", { repeat: [18, 1] })}
+            roughness={0.9}
+          />
         </mesh>
         <mesh rotation-x={-Math.PI / 2} rotation-z={0.25} position={[0, 0.015, 0.6]}>
           <planeGeometry args={[16, 0.03]} />

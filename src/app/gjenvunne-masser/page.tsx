@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { FractionScale } from "@/components/MaterialRender";
 import ProductGrid from "@/components/ProductGrid";
 import { PageHero, QuoteBand, Section, SectionHead } from "@/components/page";
 import { ButtonLink } from "@/components/ui";
@@ -36,6 +37,13 @@ export default function GjenvunneMasserPage() {
           Prisliste (PDF)
         </ButtonLink>
       </PageHero>
+
+      <Section tone="white" labelledBy="skala-title">
+        <div className="grid gap-10 lg:grid-cols-[0.8fr_2fr] lg:items-center">
+          <SectionHead eyebrow="Fraksjoner" id="skala-title" title="Fra kabelsand til grov pukk" lead="Rene masser sorteres etter størrelse gjennom flere vaske- og sorteringstrinn. Slik forholder fraksjonene seg til hverandre." />
+          <FractionScale />
+        </div>
+      </Section>
 
       <Section id="produkter" labelledBy="produkter-title">
         <SectionHead eyebrow="Produkter" id="produkter-title" title="Fraksjoner fra 0 til 90 mm" />

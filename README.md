@@ -49,9 +49,8 @@ With neither configured, the API returns `503 not_configured` and the user sees 
 - **Quality tiers** (`src/lib/quality.tsx`): `high` / `medium` / `low` / `static`, from WebGL support, CPU cores, memory, viewport and Save-Data. Low tier means fewer particles and instances, lower DPR and no environment-map pass. Visitors can switch 3D off (mobile menu and footer).
 - **`SceneFrame`** mounts a canvas only near the viewport, pauses it offscreen, unmounts it far away, compiles shaders with `compileAsync` before the first frame, and falls back to its poster on error or context loss. The hero waits for `requestIdleCallback` after load.
 - **Reduced motion:** no camera choreography or autorotation; the scroll sequence becomes a regular photo layout.
-- **Textures:** the strata texture is procedural but baked to `public/textures/strata.webp`. Re-bake after editing `src/three/strata.ts`:
-  `npx -y -p playwright-core@1.56.1 node scripts/bake-strata.mjs` (Node ≥ 23 and Chrome; set `CHROME_PATH` if needed).
-- No glTF downloads: all geometry is procedural.
+- **Assets:** CC0 Poly Haven scans (soil/sand/gravel/rock textures, two meshopt-compressed stone GLBs, ~90 KB) plus baked posters and product renders. Every file, its source, licence and optimisation is listed in [ASSETS.md](ASSETS.md); regenerate with `node scripts/asset-manifest.mjs`.
+- **Labels in 3D** use `src/three/ScreenLabel.tsx` (plain DOM), not drei `<Html>`, which crashes on canvas teardown with React 19.
 - Landmarks, skip link, visible focus, keyboard-operable explorers (`aria-pressed`, `aria-live`), alt text, text contrast ≥ 4.5:1.
 
 **Lighthouse 12.8** (local production build, homepage, warm runs):

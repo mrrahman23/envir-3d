@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { CtaBand, PageHero, Section, SectionHead } from "@/components/page";
 import { ButtonLink } from "@/components/ui";
+import { LcaBoundaryDiagram } from "@/components/diagrams";
 import { company, sustainability } from "@/content/site";
 
 export const metadata: Metadata = {
@@ -65,6 +66,12 @@ export default function BaerekraftPage() {
           <p>
             I denne omgang ble det valgt å gjennomføre en LCA som dekker de samme miljøpåvirknings-kategoriene som en EPD (Environmental Product Declaration). Resultatene kan benyttes direkte i klimagassregnskap. Når vårt nye sandblandeverk har vært i full drift i ett år, planlegger Envir å starte arbeidet med å utarbeide en fullverdig EPD for våre gjenvunne materialer.
           </p>
+        </div>
+        <div className="mt-12 rounded-[28px] border border-white/10 bg-white/[0.03] p-6 sm:p-8">
+          <h3 className="display text-xl">Hva analysen omfatter</h3>
+          <div className="mt-6">
+            <LcaBoundaryDiagram />
+          </div>
         </div>
         <div className="mt-8">
           <ButtonLink href={company.docs.lca}>Last ned LCA-rapporten (PDF)</ButtonLink>

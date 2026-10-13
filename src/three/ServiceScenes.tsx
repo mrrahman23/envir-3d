@@ -1,13 +1,14 @@
 "use client";
 
-import { Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { Quality } from "@/lib/quality";
 import { tierScale } from "@/lib/quality";
 import { mulberry32 } from "./noise";
-import { DustField, FlowLine, Pile, RockMound, StudioLights, Tank, Truck, WashDrum } from "./kit";
+import { DustField, FlowLine, Pile, StudioLights, Tank, Truck, WashDrum } from "./kit";
+import { MaterialSample, type FractionId } from "./materials";
+import ScreenLabel from "./ScreenLabel";
 
 type P = { quality: Quality; reducedMotion: boolean };
 
@@ -112,62 +113,49 @@ export function ReceptionScene({ quality, reducedMotion }: P) {
   );
 }
 
-/* B — Salg: a rotating carousel of recovered fractions. */
-const SAMPLES = [
-  { id: "0-2", sand: true, color: "#ada18b" },
-  { id: "2-8", size: [0.014, 0.026], n: 900, colors: ["#a59c8c", "#8f877a", "#c1b8a6"] },
-  { id: "8-16", size: [0.026, 0.045], n: 520, colors: ["#8d8b85", "#a9a59c", "#6f6d68"] },
-  { id: "16-32", size: [0.045, 0.075], n: 260, colors: ["#8b8a85", "#a7a39a", "#6d6b66"] },
-  { id: "32-64", size: [0.075, 0.12], n: 120, colors: ["#7f7d77", "#9d9a92", "#64625d"] },
-  { id: "64-90", size: [0.12, 0.17], n: 55, colors: ["#77756f", "#93908a", "#5f5d59"] },
-] as const;
+/* B — Salg: a rotating carousel of recovered fractions (scanned-stone material library). */
+const SAMPLES: FractionId[] = ["0-2", "2-8", "8-16", "16-32", "32-64", "64-90"];
 
-export const SAMPLE_IDS = SAMPLES.map((s) => s.id);
+export const SAMPLE_IDS = SAMPLES;
 
 export function MaterialsScene({ quality, reducedMotion, selected }: P & { selected: number }) {
   const k = tierScale(quality);
   const group = useRef<THREE.Group>(null);
+  const spinners = useRef<(THREE.Group | null)[]>([]);
+  const key = useRef<THREE.SpotLight>(null);
+  // D. Product reveal: samples settle onto their plinths, then the key light comes up.
+  const reveal = useRef(reducedMotion ? 1 : 0);
   const R = 2.3;
   useFrame((_, dt) => {
     if (!group.current) return;
+    if (reveal.current < 1) reveal.current = Math.min(1, reveal.current + dt * 0.55);
+    if (key.current) key.current.intensity = 20 + 45 * THREE.MathUtils.smoothstep(reveal.current, 0.3, 1);
     const target = -(selected / SAMPLES.length) * Math.PI * 2;
     const g = group.current;
-    // shortest path rotation
     let diff = target - g.rotation.y;
     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
     g.rotation.y += reducedMotion ? diff : diff * (1 - Math.exp(-dt * 3));
-    g.children.forEach((c, i) => {
-      const inner = c.children[2];
-      if (inner && !reducedMotion) inner.rotation.y += dt * (i === selected ? 0.35 : 0.1);
-    });
+    if (!reducedMotion) spinners.current.forEach((sp, i) => sp && (sp.rotation.y += dt * (i === selected ? 0.3 : 0.08)));
   });
   return (
     <>
-      <StudioLights env={quality !== "low"} intensity={0.7} envIntensity={0.6} />
-      <spotLight position={[0, 5, 4.5]} angle={0.42} penumbra={0.75} intensity={60} color="#fff3e2" distance={14} />
-      <mesh rotation-x={-Math.PI / 2} position={[0, -0.001, 0]}>
+      <StudioLights env={quality !== "low"} intensity={0.7} envIntensity={0.7} />
+      <spotLight ref={key} position={[0, 5, 4.5]} angle={0.42} penumbra={0.75} intensity={reducedMotion ? 65 : 20} color="#fff3e2" distance={14} castShadow={quality === "high"} />
+      <mesh rotation-x={-Math.PI / 2} position={[0, -0.001, 0]} receiveShadow>
         <circleGeometry args={[6, 64]} />
         <meshStandardMaterial color="#141a19" roughness={0.4} metalness={0.3} />
       </mesh>
       <group ref={group} position={[0, 0, -R + 0.9]}>
-        {SAMPLES.map((s, i) => {
+        {SAMPLES.map((id, i) => {
           const a = (i / SAMPLES.length) * Math.PI * 2;
           return (
-            <group key={s.id} position={[Math.sin(a) * R, 0, Math.cos(a) * R]}>
-              <mesh position={[0, 0.12, 0]}>
-                <cylinderGeometry args={[0.55, 0.6, 0.24, 48]} />
-                <meshStandardMaterial color="#1f2826" metalness={0.5} roughness={0.3} />
-              </mesh>
-              <mesh position={[0, 0.242, 0]} rotation-x={-Math.PI / 2}>
-                <ringGeometry args={[0.52, 0.55, 64]} />
-                <meshBasicMaterial color={i === selected ? "#b9d95a" : "#3d4a46"} />
-              </mesh>
-              <group position={[0, 0.24, 0]}>
-                {"sand" in s ? (
-                  <Pile r={0.48} h={0.36} color={s.color} seed={40} grain={0.16} />
-                ) : (
-                  <RockMound count={Math.round(s.n * (0.35 + 0.65 * k))} radius={0.46} height={0.32} size={s.size as unknown as [number, number]} colors={[...s.colors]} seed={i + 7} />
-                )}
+            <group key={id} position={[Math.sin(a) * R, 0, Math.cos(a) * R]}>
+              <group
+                ref={(el) => {
+                  spinners.current[i] = el;
+                }}
+              >
+                <MaterialSample fraction={id} radius={0.5} budget={0.35 + 0.65 * k} seed={i + 7} ring={i === selected ? "#b9d95a" : "#3d4a46"} reveal={reveal} />
               </group>
             </group>
           );
@@ -201,15 +189,9 @@ export function WashScene({ quality, reducedMotion }: P) {
       <Pile position={[-2.1, 0, 0.2]} r={0.7} h={0.55} color="#47352a" seed={14} />
       <Pile position={[2.1, 0, 0.0]} r={0.7} h={0.55} color="#cdb48a" seed={15} grain={0.2} />
       <Tank position={[1.9, 0, 1.3]} r={0.35} h={0.3} color="#4f4a43" />
-      <Html position={[-2.1, 0.95, 0.2]} center distanceFactor={3.6} style={{ pointerEvents: "none" }}>
-        <span aria-hidden className="whitespace-nowrap rounded-full border border-white/20 bg-night/70 px-3 py-1 text-[11px] text-white/90 backdrop-blur">Inn</span>
-      </Html>
-      <Html position={[2.1, 0.95, 0]} center distanceFactor={3.6} style={{ pointerEvents: "none" }}>
-        <span aria-hidden className="whitespace-nowrap rounded-full border border-white/20 bg-night/70 px-3 py-1 text-[11px] text-white/90 backdrop-blur">Ut: vasket sand</span>
-      </Html>
-      <Html position={[1.9, 0.65, 1.3]} center distanceFactor={3.6} style={{ pointerEvents: "none" }}>
-        <span aria-hidden className="whitespace-nowrap rounded-full border border-white/20 bg-night/70 px-3 py-1 text-[11px] text-white/90 backdrop-blur">Slam → filterpresse</span>
-      </Html>
+      <ScreenLabel position={[-2.1, 0.95, 0.2]} text="Inn" className="whitespace-nowrap rounded-full border border-white/20 bg-night/70 px-3 py-1 text-[11px] text-white/90 backdrop-blur" />
+      <ScreenLabel position={[2.1, 0.95, 0]} text="Ut: vasket sand" className="whitespace-nowrap rounded-full border border-white/20 bg-night/70 px-3 py-1 text-[11px] text-white/90 backdrop-blur" />
+      <ScreenLabel position={[1.9, 0.65, 1.3]} text="Slam → filterpresse" className="whitespace-nowrap rounded-full border border-white/20 bg-night/70 px-3 py-1 text-[11px] text-white/90 backdrop-blur" />
       <DustField count={Math.round(220 * k)} bounds={[6, 3, 3]} position={[0, 1.5, 0]} palette={["#b8dbe6", "#96d7e8", "#e6f2f5", "#ffffff"]} size={[0.4, 1.2]} rise={-0.02} opacity={0.6} glint={0} />
     </>
   );

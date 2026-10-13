@@ -10,7 +10,9 @@ class SceneBoundary extends Component<{ children: ReactNode; onError: () => void
   static getDerivedStateFromError() {
     return { failed: true };
   }
-  componentDidCatch() {
+  componentDidCatch(error: unknown) {
+    // Fall back to the poster, but keep the cause visible for debugging.
+    console.error("[SceneFrame] 3D scene failed, showing fallback:", error);
     this.props.onError();
   }
   render() {
@@ -42,10 +44,17 @@ export default function SceneFrame({ poster, children, className = "", eager, ca
   const { quality, reducedMotion } = useQuality();
   const wrap = useRef<HTMLDivElement>(null);
   const [near, setNear] = useState(false);
+  // Two-step teardown: scene content leaves first (drei <Html> labels run nested React
+  // roots that must unmount through R3F), then the canvas itself a moment later.
+  const [content, setContent] = useState(false);
+  const teardown = useRef(0);
   const [visible, setVisible] = useState(!!eager);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [compiled, setCompiled] = useState(false);
+  // Set while we intentionally unmount the canvas: R3F force-loses the context on dispose,
+  // which must not be mistaken for a crash.
+  const leaving = useRef(false);
 
   useEffect(() => {
     const el = wrap.current;
@@ -56,7 +65,14 @@ export default function SceneFrame({ poster, children, className = "", eager, ca
       // Above the fold: let the page (text, poster, hydration) settle first, then start WebGL when idle.
       const ric = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 200));
       const go = () => {
-        idleId = ric(() => !cancelled && setNear(true), { timeout: 2500 }) as number;
+        idleId = ric(
+          () => {
+            if (cancelled) return;
+            setNear(true);
+            setContent(true);
+          },
+          { timeout: 2500 },
+        ) as number;
       };
       if (document.readyState === "complete") go();
       else window.addEventListener("load", go, { once: true });
@@ -65,10 +81,20 @@ export default function SceneFrame({ poster, children, className = "", eager, ca
     const mountIO = new IntersectionObserver(
       ([e]) => {
         if (eager) return;
-        setNear(e.isIntersecting);
-        if (!e.isIntersecting) {
+        window.clearTimeout(teardown.current);
+        if (e.isIntersecting) {
+          leaving.current = false;
+          setFailed(false); // a genuinely lost context gets another chance on the next visit
+          setNear(true);
+          setContent(true);
+        } else {
+          setContent(false);
           setReady(false);
           setCompiled(false);
+          teardown.current = window.setTimeout(() => {
+            leaving.current = true;
+            setNear(false);
+          }, 200);
         }
       },
       { rootMargin: "50% 0px 50% 0px" },
@@ -78,6 +104,7 @@ export default function SceneFrame({ poster, children, className = "", eager, ca
     visIO.observe(el);
     return () => {
       cancelled = true;
+      window.clearTimeout(teardown.current);
       window.cancelIdleCallback?.(idleId);
       mountIO.disconnect();
       visIO.disconnect();
@@ -108,15 +135,23 @@ export default function SceneFrame({ poster, children, className = "", eager, ca
                 gl.toneMapping = THREE.ACESFilmicToneMapping;
                 gl.toneMappingExposure = 1.05;
                 if (!transparent) scene.background = new THREE.Color(background);
-                gl.domElement.addEventListener("webglcontextlost", () => setFailed(true));
+                gl.domElement.addEventListener("webglcontextlost", () => {
+                  if (leaving.current) return; // our own dispose on unmount
+                  console.warn("[SceneFrame] WebGL context lost — showing fallback:", label);
+                  setFailed(true);
+                });
               }}
               tabIndex={-1}
               aria-hidden
             >
               <Suspense fallback={null}>
-                <Warmup onDone={onCompiled} />
-                <FirstFrame onReady={() => setReady(true)} />
-                {children({ quality, reducedMotion })}
+                {content && (
+                  <>
+                    <Warmup onDone={onCompiled} />
+                    <FirstFrame onReady={() => setReady(true)} />
+                    {children({ quality, reducedMotion })}
+                  </>
+                )}
               </Suspense>
             </Canvas>
           </SceneBoundary>
@@ -133,14 +168,21 @@ function Warmup({ onDone }: { onDone: () => void }) {
   useEffect(() => {
     let alive = true;
     // Wait one tick so every child has attached to the scene graph.
+    let finished = false;
+    const finish = () => {
+      if (finished || !alive) return;
+      finished = true;
+      onDone();
+    };
     const id = window.setTimeout(() => {
-      gl.compileAsync(scene, camera)
-        .catch(() => undefined)
-        .finally(() => alive && onDone());
+      gl.compileAsync(scene, camera).catch(() => undefined).finally(finish);
     }, 0);
+    // Never let a stalled async compile block the first frame (seen on remount).
+    const guard = window.setTimeout(finish, 1800);
     return () => {
       alive = false;
       window.clearTimeout(id);
+      window.clearTimeout(guard);
     };
   }, [gl, scene, camera, onDone]);
   return null;

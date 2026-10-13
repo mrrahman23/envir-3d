@@ -1,6 +1,7 @@
 import Image from "next/image";
 import type { Metadata } from "next";
-import { Cards, CtaBand, PageHero, Section } from "@/components/page";
+import { Cards, CtaBand, PageHero, Section, SectionHead } from "@/components/page";
+import { LabQualityDiagram } from "@/components/diagrams";
 
 export const metadata: Metadata = {
   title: "Laboratorium | Jordanalyse i Bergen",
@@ -42,6 +43,12 @@ export default function LabPage() {
             { title: "Ekspertrådgivning", text: "Våre eksperter hjelper deg å tolke og forklare resultatene, slik at vi finner den beste løsningen." },
           ]}
         />
+      </Section>
+      <Section tone="white" labelledBy="lab-flyt">
+        <SectionHead eyebrow="Kvalitetskontroll" id="lab-flyt" title="Fra prøve til testsertifikat" />
+        <div className="mt-10">
+          <LabQualityDiagram />
+        </div>
       </Section>
       <CtaBand title="Trenger du analyse av jordprøver?" text="Kontakt oss for å få hjelp med analyse og rådgivning om massehåndtering." />
     </>

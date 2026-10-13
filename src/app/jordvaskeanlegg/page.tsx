@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Cards, ContactStrip, PageHero, Section, SectionHead, Steps } from "@/components/page";
 import { ButtonLink } from "@/components/ui";
+import { WashProcessDiagram } from "@/components/diagrams";
 import { washSteps } from "@/content/site";
 
 export const metadata: Metadata = {
@@ -39,6 +40,12 @@ export default function JordvaskPage() {
       <Section tone="dark" labelledBy="slik">
         <SectionHead dark eyebrow="Prosessen" id="slik" title="Slik fungerer det" />
         <Steps dark steps={washSteps} />
+      </Section>
+      <Section tone="white" labelledBy="flyt">
+        <SectionHead eyebrow="Prosessdiagram" id="flyt" title="Hvor massene – og forurensningene – går" />
+        <div className="mt-10">
+          <WashProcessDiagram />
+        </div>
       </Section>
       <Section tone="sand" labelledBy="mer">
         <SectionHead eyebrow="Mer fra anlegget" id="mer" title="Kai, laboratorium og rådgivning" />
