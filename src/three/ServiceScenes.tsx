@@ -1,8 +1,12 @@
 "use client";
 
-import { useFrame } from "@react-three/fiber";
-import { memo, useMemo, useRef } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
+import { memo, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import { BokehPass } from "three/examples/jsm/postprocessing/BokehPass.js";
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import type { Quality } from "@/lib/quality";
 import { tierScale } from "@/lib/quality";
 import { mulberry32 } from "./noise";
@@ -118,30 +122,133 @@ const SAMPLES: FractionId[] = ["0-2", "2-8", "8-16", "16-32", "32-64", "64-90"];
 
 export const SAMPLE_IDS = SAMPLES;
 
+/**
+ * Linear background colour that comes out as `target` after the composer's OutputPass
+ * (ACES filmic tone mapping + sRGB). Plain renders never tone-map the clear colour, but a
+ * post-processing chain does — without this the paper-coloured canvas turns grey.
+ */
+function compensateForAces(target: THREE.Color, exposure: number) {
+  const aces = (r: number, g: number, b: number) => {
+    const k = exposure / 0.6;
+    [r, g, b] = [r * k, g * k, b * k];
+    const x = 0.59719 * r + 0.35458 * g + 0.04823 * b;
+    const y = 0.076 * r + 0.90834 * g + 0.01566 * b;
+    const z = 0.0284 * r + 0.13383 * g + 0.83777 * b;
+    const fit = (v: number) => (v * (v + 0.0245786) - 0.000090537) / (v * (0.983729 * v + 0.432951) + 0.238081);
+    const [fx, fy, fz] = [fit(x), fit(y), fit(z)];
+    return [1.60475 * fx - 0.53108 * fy - 0.07367 * fz, -0.10208 * fx + 1.10813 * fy - 0.00605 * fz, -0.00327 * fx - 0.07276 * fy + 1.07602 * fz].map((v) => Math.min(1, Math.max(0, v)));
+  };
+  const want = [target.r, target.g, target.b]; // THREE.Color stores linear values
+  const c = [...want];
+  for (let i = 0; i < 40; i++) {
+    const out = aces(c[0], c[1], c[2]);
+    for (let j = 0; j < 3; j++) c[j] *= want[j] / Math.max(1e-4, out[j]);
+  }
+  return new THREE.Color().setRGB(c[0], c[1], c[2]);
+}
+
 export const MaterialsScene = memo(function MaterialsScene({ quality, reducedMotion, selected }: P & { selected: number }) {
   const k = tierScale(quality);
+  const { gl, scene, camera, size } = useThree();
   const group = useRef<THREE.Group>(null);
+  const slots = useRef<(THREE.Group | null)[]>([]);
   const spinners = useRef<(THREE.Group | null)[]>([]);
   const key = useRef<THREE.SpotLight>(null);
   // D. Product reveal: samples settle onto their plinths, then the key light comes up.
   const reveal = useRef(reducedMotion ? 1 : 0);
+  // Pointer over the carousel: x turns the ring around its circle, y tilts it slightly.
+  const pointer = useRef({ x: 0, y: 0, sx: 0, sy: 0, active: false });
   const R = 2.3;
-  useFrame((_, dt) => {
-    if (!group.current) return;
-    if (reveal.current < 1) reveal.current = Math.min(1, reveal.current + dt * 0.55);
-    if (key.current) key.current.intensity = 20 + 45 * THREE.MathUtils.smoothstep(reveal.current, 0.3, 1);
-    const target = -(selected / SAMPLES.length) * Math.PI * 2;
+
+  // Depth of field: the selected sample stays sharp, the rest of the ring falls out of focus
+  // by its real distance. Skipped on the low tier (phones), where the scale/lift highlight remains.
+  const dof = useMemo(() => {
+    if (quality === "low") return null;
+    const composer = new EffectComposer(gl);
+    composer.addPass(new RenderPass(scene, camera));
+    const bokeh = new BokehPass(scene, camera, { focus: 4, aperture: 0.0026, maxblur: 0.0085 });
+    composer.addPass(bokeh);
+    composer.addPass(new OutputPass());
+    return { composer, bokeh };
+  }, [gl, scene, camera, quality]);
+  useEffect(() => {
+    if (!dof) return;
+    dof.composer.setPixelRatio(gl.getPixelRatio());
+    dof.composer.setSize(size.width, size.height);
+  }, [dof, gl, size]);
+  useEffect(() => () => dof?.composer.dispose(), [dof]);
+  useEffect(() => {
+    if (!dof || !(scene.background instanceof THREE.Color)) return;
+    const original = scene.background;
+    scene.background = compensateForAces(original, gl.toneMappingExposure);
+    return () => {
+      scene.background = original;
+    };
+  }, [dof, scene, gl]);
+
+  useEffect(() => {
+    if (reducedMotion) return;
+    const el = gl.domElement;
+    const onMove = (e: PointerEvent) => {
+      if (e.pointerType === "touch") return;
+      const r = el.getBoundingClientRect();
+      const p = pointer.current;
+      p.active = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+      if (!p.active) return;
+      p.x = ((e.clientX - r.left) / r.width - 0.5) * 2;
+      p.y = ((e.clientY - r.top) / r.height - 0.5) * 2;
+    };
+    const onLeave = () => (pointer.current.active = false);
+    window.addEventListener("pointermove", onMove, { passive: true });
+    document.documentElement.addEventListener("pointerleave", onLeave);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      document.documentElement.removeEventListener("pointerleave", onLeave);
+    };
+  }, [gl, reducedMotion]);
+
+  const v = useMemo(() => new THREE.Vector3(), []);
+  useFrame(({ clock }, dt) => {
     const g = group.current;
-    let diff = target - g.rotation.y;
-    diff = Math.atan2(Math.sin(diff), Math.cos(diff));
-    g.rotation.y += reducedMotion ? diff : diff * (1 - Math.exp(-dt * 3));
-    if (!reducedMotion) spinners.current.forEach((sp, i) => sp && (sp.rotation.y += dt * (i === selected ? 0.3 : 0.08)));
-  });
+    if (g) {
+      if (reveal.current < 1) reveal.current = Math.min(1, reveal.current + dt * 0.55);
+      if (key.current) key.current.intensity = 20 + 45 * THREE.MathUtils.smoothstep(reveal.current, 0.3, 1);
+      const p = pointer.current;
+      p.sx = THREE.MathUtils.damp(p.sx, p.active ? p.x : 0, 3, dt);
+      p.sy = THREE.MathUtils.damp(p.sy, p.active ? p.y : 0, 3, dt);
+      // Selected sample faces the camera; the pointer swings the ring up to ~1.5 slots either way.
+      const sway = reducedMotion ? 0 : Math.sin(clock.elapsedTime * 0.25) * 0.05;
+      const target = -(selected / SAMPLES.length) * Math.PI * 2 - p.sx * 1.6 + sway;
+      let diff = target - g.rotation.y;
+      diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+      g.rotation.y += reducedMotion ? diff : diff * (1 - Math.exp(-dt * 3.5));
+      g.rotation.x = p.sy * 0.07;
+      slots.current.forEach((slot, i) => {
+        if (!slot) return;
+        const on = i === selected;
+        const s = THREE.MathUtils.damp(slot.scale.x, on ? 1.14 : 0.9, 5, dt);
+        slot.scale.setScalar(reducedMotion ? (on ? 1.14 : 0.9) : s);
+        slot.position.y = reducedMotion ? (on ? 0.12 : 0) : THREE.MathUtils.damp(slot.position.y, on ? 0.12 : 0, 5, dt);
+      });
+      if (!reducedMotion) spinners.current.forEach((sp, i) => sp && (sp.rotation.y += dt * (i === selected ? 0.3 : 0.08)));
+    }
+    const sel = slots.current[selected];
+    if (dof && sel) {
+      // Focus on the selected sample wherever the ring has turned it.
+      sel.getWorldPosition(v).applyMatrix4(camera.matrixWorldInverse);
+      const focus = (dof.bokeh.uniforms as Record<string, THREE.IUniform<number>>).focus;
+      focus.value = THREE.MathUtils.damp(focus.value, -v.z, 6, dt);
+      dof.composer.render(dt);
+    } else {
+      gl.render(scene, camera);
+    }
+  }, 1);
+
   return (
     <>
       <StudioLights env={quality !== "low"} intensity={0.7} envIntensity={0.7} />
       <spotLight ref={key} position={[0, 5, 4.5]} angle={0.42} penumbra={0.75} intensity={reducedMotion ? 65 : 20} color="#fff3e2" distance={14} castShadow={quality === "high"} />
-      {/* Transparent floor that only receives shadows — samples sit on the page background */}
+      {/* Floor that only receives shadows — samples sit on the page background */}
       <mesh rotation-x={-Math.PI / 2} position={[0, -0.001, 0]} receiveShadow>
         <circleGeometry args={[6, 64]} />
         <shadowMaterial transparent opacity={0.18} />
@@ -153,10 +260,16 @@ export const MaterialsScene = memo(function MaterialsScene({ quality, reducedMot
             <group key={id} position={[Math.sin(a) * R, 0, Math.cos(a) * R]}>
               <group
                 ref={(el) => {
-                  spinners.current[i] = el;
+                  slots.current[i] = el;
                 }}
               >
-                <MaterialSample fraction={id} radius={0.5} budget={0.35 + 0.65 * k} seed={i + 7} ring={i === selected ? "#b9d95a" : "#3d4a46"} reveal={reveal} />
+                <group
+                  ref={(el) => {
+                    spinners.current[i] = el;
+                  }}
+                >
+                  <MaterialSample fraction={id} radius={0.5} budget={0.35 + 0.65 * k} seed={i + 7} ring={i === selected ? "#b9d95a" : "#3d4a46"} reveal={reveal} />
+                </group>
               </group>
             </group>
           );

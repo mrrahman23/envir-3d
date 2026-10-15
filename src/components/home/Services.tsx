@@ -67,7 +67,8 @@ export default function Services() {
               <div>
                 <SceneFrame
                   className="aspect-[4/3] w-full [mask-image:linear-gradient(90deg,transparent_0%,black_16%,black_84%,transparent_100%)]"
-                  transparent
+                  // Opaque in the section's paper colour: the depth-of-field pass writes opaque pixels.
+                  background="#f5f4ee"
                   label={`3D-illustrasjon av gjenvunne fraksjoner. Valgt: ${product.name}.`}
                   camera={{ fov: 30, position: [0, 1.5, 4.4] }}
                   alwaysRender

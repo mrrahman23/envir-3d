@@ -1,0 +1,301 @@
+{
+  "globe": {
+    "files": [
+      "globe-4k.webp",
+      "globe-2k.webp"
+    ],
+    "source": "NASA Blue Marble: Next Generation w/ Topography and Bathymetry, July 2004 (https://eoimages.gsfc.nasa.gov/images/imagerecords/73000/73751/world.topo.bathy.200407.3x21600x10800.jpg)",
+    "projection": "equirectangular (plate carrée), lon -180..180 left->right, lat 90..-90 top->bottom",
+    "note": "three.js SphereGeometry default UVs already match (u=(lon+180)/360, v=(lat+90)/180); with no rotation lon/lat sits at x=cos(lat)cos(lon), y=sin(lat), z=-cos(lat)sin(lon) (lon 0 -> +X, 90E -> -Z)",
+    "licence": "Public domain (NASA)",
+    "attribution": "NASA Earth Observatory / Reto Stöckli, Blue Marble Next Generation"
+  },
+  "clouds": {
+    "files": [
+      "globe-clouds-2k.webp"
+    ],
+    "source": "NASA Blue Marble cloud composite (cloud_combined_8192.tif, https://eoimages.gsfc.nasa.gov/images/imagerecords/57000/57747/cloud_combined_8192.tif)",
+    "projection": "equirectangular, same layout as globe-*.webp",
+    "encoding": "greyscale (R=G=B); use the red channel as cloud opacity (black = clear)",
+    "licence": "Public domain (NASA)",
+    "attribution": "NASA Goddard Space Flight Center / Reto Stöckli, Blue Marble cloud composite"
+  },
+  "region": {
+    "files": [
+      {
+        "file": "region-norway.webp",
+        "width": 2048,
+        "height": 1229
+      },
+      {
+        "file": "region-norway-1k.webp",
+        "width": 1024,
+        "height": 614
+      }
+    ],
+    "source": "NASA BMNG July 2004 topo+bathy 500 m tile C1 (0-90E, 0-90N): https://eoimages.gsfc.nasa.gov/images/imagerecords/73000/73751/world.topo.bathy.200407.3x21600x21600.C1.jpg",
+    "projection": "equirectangular (plate carrée) lon/lat, WGS84",
+    "bboxLonLat": {
+      "lonMin": 0.5,
+      "lonMax": 10.5,
+      "latMin": 57.4,
+      "latMax": 63.4
+    },
+    "sourcePixels": {
+      "left": 120,
+      "top": 6384,
+      "width": 2400,
+      "height": 1440,
+      "pixelDeg": 0.004166666666666667
+    },
+    "degPerPixel2048": {
+      "lon": 0.0048828125,
+      "lat": 0.004882017900732303
+    },
+    "note": "plate carrée: on a flat plane E-W is stretched by 1/cos(lat); for a true-proportion plane scale width by cos(60.4°)≈0.494, or drape onto the globe with u=(lon-lonMin)/(lonMax-lonMin), v=(lat-latMin)/(latMax-latMin)",
+    "licence": "Public domain (NASA)",
+    "attribution": "NASA Earth Observatory / Reto Stöckli, Blue Marble Next Generation"
+  },
+  "s2": {
+    "source": "Copernicus Sentinel-2B L2A, 2020-08-09 11:14 UTC (processing baseline 05.00), TCI (visual) 10 m COGs via https://earth-search.aws.element84.com/v1: S2B_32VKM_20200809_1_L2A, S2B_32VKN_20200809_1_L2A, S2B_32VLM_20200809_1_L2A, S2B_32VLN_20200809_1_L2A",
+    "grade": {
+      "black": [
+        0,
+        0,
+        0
+      ],
+      "white": 171,
+      "gamma": 0.82,
+      "note": "per-channel black offset (haze), shared white, gamma lift, soft shoulder; saturation x0.86 (desaturated slightly)"
+    },
+    "licence": "Copernicus Sentinel data licence: free, full and open incl. commercial use; attribution required",
+    "attribution": "Contains modified Copernicus Sentinel data 2020",
+    "square": {
+      "files": [
+        {
+          "file": "bergen-s2-2k.webp",
+          "px": 2048,
+          "metresPerPixel": 17.578125
+        },
+        {
+          "file": "bergen-s2-1k.webp",
+          "px": 1024,
+          "metresPerPixel": 35.15625
+        }
+      ],
+      "crs": "EPSG:32632 (WGS 84 / UTM zone 32N)",
+      "utmBbox": {
+        "minE": 278070,
+        "minN": 6681460,
+        "maxE": 314070,
+        "maxN": 6717460
+      },
+      "sizeMetres": 36000,
+      "requestedCentreLonLat": [
+        5.3,
+        60.38
+      ],
+      "centreLonLat": [
+        5.300064,
+        60.380007
+      ],
+      "cornersLonLat": {
+        "nw": [
+          4.954361,
+          60.531758
+        ],
+        "ne": [
+          5.609141,
+          60.550009
+        ],
+        "se": [
+          5.642559,
+          60.227335
+        ],
+        "sw": [
+          4.994194,
+          60.20932
+        ]
+      },
+      "lonLatEnvelope": {
+        "lonMin": 4.954361,
+        "lonMax": 5.642559,
+        "latMin": 60.20932,
+        "latMax": 60.550009
+      },
+      "trueNorthDegFromImageUp": 3.218
+    },
+    "detail": {
+      "files": [
+        {
+          "file": "bergen-s2-detail-2k.webp",
+          "px": 2048,
+          "metresPerPixel": 2.9296875,
+          "nativeResolution": "10 m (upsampled)"
+        }
+      ],
+      "crs": "EPSG:32632 (WGS 84 / UTM zone 32N)",
+      "utmBbox": {
+        "minE": 292550,
+        "minN": 6697050,
+        "maxE": 298550,
+        "maxN": 6703050
+      },
+      "sizeMetres": 6000,
+      "requestedCentreLonLat": [
+        5.29,
+        60.385
+      ],
+      "centreLonLat": [
+        5.29005,
+        60.385032
+      ],
+      "cornersLonLat": {
+        "nw": [
+          5.23264,
+          60.410383
+        ],
+        "ne": [
+          5.341338,
+          60.413417
+        ],
+        "se": [
+          5.347372,
+          60.359654
+        ],
+        "sw": [
+          5.238852,
+          60.356627
+        ]
+      },
+      "lonLatEnvelope": {
+        "lonMin": 5.23264,
+        "lonMax": 5.347372,
+        "latMin": 60.356627,
+        "latMax": 60.413417
+      },
+      "trueNorthDegFromImageUp": 3.227
+    }
+  },
+  "dem": {
+    "source": "Copernicus DEM GLO-30 (2021 release), tiles N60 E004/E005 from https://copernicus-dem-30m.s3.amazonaws.com",
+    "verticalDatum": "EGM2008 geoid heights in metres; sea surface ≈ 0",
+    "licence": "Copernicus DEM licence (free incl. commercial use, attribution required)",
+    "attribution": "© DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA; all rights reserved",
+    "resampling": "bilinear, sampled at each output pixel centre: UTM32N (E,N) -> lon/lat -> DEM; negatives clamped to 0",
+    "square": {
+      "files": [
+        {
+          "file": "bergen-dem-512.png",
+          "px": 512,
+          "metresPerPixel": 70.3125,
+          "encoding": "16-bit grey PNG, metres = value / 65535 * 984"
+        },
+        {
+          "file": "bergen-dem-256.webp",
+          "px": 256,
+          "metresPerPixel": 140.625,
+          "encoding": "8-bit lossless WebP (R=G=B), metres = value / 255 * 984"
+        }
+      ],
+      "minMetres": 0,
+      "maxMetres": 983.2,
+      "decodeMaxMetres": 984,
+      "crs": "EPSG:32632 (WGS 84 / UTM zone 32N)",
+      "utmBbox": {
+        "minE": 278070,
+        "minN": 6681460,
+        "maxE": 314070,
+        "maxN": 6717460
+      },
+      "sizeMetres": 36000,
+      "requestedCentreLonLat": [
+        5.3,
+        60.38
+      ],
+      "centreLonLat": [
+        5.300064,
+        60.380007
+      ],
+      "cornersLonLat": {
+        "nw": [
+          4.954361,
+          60.531758
+        ],
+        "ne": [
+          5.609141,
+          60.550009
+        ],
+        "se": [
+          5.642559,
+          60.227335
+        ],
+        "sw": [
+          4.994194,
+          60.20932
+        ]
+      },
+      "lonLatEnvelope": {
+        "lonMin": 4.954361,
+        "lonMax": 5.642559,
+        "latMin": 60.20932,
+        "latMax": 60.550009
+      },
+      "trueNorthDegFromImageUp": 3.218
+    },
+    "detail": {
+      "files": [
+        {
+          "file": "bergen-dem-detail-256.png",
+          "px": 256,
+          "metresPerPixel": 23.4375,
+          "encoding": "16-bit grey PNG, metres = value / 65535 * 473"
+        }
+      ],
+      "minMetres": 0,
+      "maxMetres": 472.1,
+      "decodeMaxMetres": 473,
+      "crs": "EPSG:32632 (WGS 84 / UTM zone 32N)",
+      "utmBbox": {
+        "minE": 292550,
+        "minN": 6697050,
+        "maxE": 298550,
+        "maxN": 6703050
+      },
+      "sizeMetres": 6000,
+      "requestedCentreLonLat": [
+        5.29,
+        60.385
+      ],
+      "centreLonLat": [
+        5.29005,
+        60.385032
+      ],
+      "cornersLonLat": {
+        "nw": [
+          5.23264,
+          60.410383
+        ],
+        "ne": [
+          5.341338,
+          60.413417
+        ],
+        "se": [
+          5.347372,
+          60.359654
+        ],
+        "sw": [
+          5.238852,
+          60.356627
+        ]
+      },
+      "lonLatEnvelope": {
+        "lonMin": 5.23264,
+        "lonMax": 5.347372,
+        "latMin": 60.356627,
+        "latMax": 60.413417
+      },
+      "trueNorthDegFromImageUp": 3.227
+    }
+  }
+}

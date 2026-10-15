@@ -1,7 +1,7 @@
 "use client";
 
 import { useFrame, useThree } from "@react-three/fiber";
-import { useMemo, useRef, type MutableRefObject } from "react";
+import { useEffect, useMemo, useRef, type MutableRefObject } from "react";
 import * as THREE from "three";
 import type { Quality } from "@/lib/quality";
 import { tierScale } from "@/lib/quality";
@@ -13,8 +13,10 @@ import ScreenLabel from "./ScreenLabel";
 import { MaterialSample } from "./materials";
 import { pbrTexture } from "./textures";
 
-// Stations sit close enough that neighbours and the material stream stay in frame while travelling.
-export const STAGE_X = [0, 9.5, 19, 28.5, 38];
+// Stations sit close enough that the next machine is already in frame while travelling,
+// and conveyor runs link them so there is never a stretch of empty floor.
+export const STAGE_X = [0, 6.8, 13.6, 20.4, 27.2];
+const FLOOR_END = STAGE_X[4] - 4;
 
 // Look targets sit left of each station so the subject composes right of the copy.
 const CAMS: { pos: [number, number, number]; look: [number, number, number] }[] = [
@@ -153,10 +155,11 @@ export default function TransformScene({ progress, quality }: { progress: Mutabl
     const u = phase / (STAGES - 1);
     POS_CURVE.getPoint(u, tmpA);
     LOOK_CURVE.getPoint(u, look);
-    // Gentle crane lift while travelling between stations.
-    const between = Math.sin((phase % 1) * Math.PI);
-    tmpA.y += between * 0.9;
-    tmpA.z += between * 1.1;
+    // Gentle crane lift while travelling. sin² has zero slope at each station, so the
+    // camera eases in and out of every stop instead of reversing direction with a jolt.
+    const between = Math.sin((phase % 1) * Math.PI) ** 2;
+    tmpA.y += between * 0.55;
+    tmpA.z += between * 0.8;
     // Portrait: centre the subject in the upper half, copy sits below.
     if (size.width / size.height < 1) {
       tmpA.sub(look);
@@ -194,6 +197,21 @@ export default function TransformScene({ progress, quality }: { progress: Mutabl
   const beltStart = useMemo(() => new THREE.Vector3(STAGE_X[1] - 3.2, 0.25, 0), []);
   const beltEnd = useMemo(() => new THREE.Vector3(STAGE_X[1] + 0.1, 1.05, 0), []);
 
+  const grassFade = useMemo(() => {
+    const c = document.createElement("canvas");
+    c.width = 256;
+    c.height = 1;
+    const g = c.getContext("2d")!;
+    const grad = g.createLinearGradient(0, 0, 256, 0);
+    grad.addColorStop(0, "#000");
+    grad.addColorStop(0.22, "#fff");
+    grad.addColorStop(1, "#fff");
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 256, 1);
+    return new THREE.CanvasTexture(c);
+  }, []);
+  useEffect(() => () => grassFade.dispose(), [grassFade]);
+
   const fractions = [
     { label: "0–2 mm", id: "0-2" as const },
     { label: "2–8 mm", id: "2-8" as const },
@@ -209,19 +227,19 @@ export default function TransformScene({ progress, quality }: { progress: Mutabl
       <directionalLight ref={sun} position={[STAGE_X[4] + 6, 12, 8]} intensity={0.6} color="#fff1db" />
 
       {/* Industrial floor through stages 1–4 */}
-      <mesh rotation-x={-Math.PI / 2} position={[(STAGE_X[4] - 10) / 2 - 2.5, 0, 0]} receiveShadow>
-        <planeGeometry args={[STAGE_X[4] - 5, 18]} />
+      <mesh rotation-x={-Math.PI / 2} position={[(FLOOR_END - 8) / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[FLOOR_END + 8, 18]} />
         <meshStandardMaterial
           color="#4a4f4c"
-          map={pbrTexture("/assets/facility/concrete-albedo.webp", { repeat: [(STAGE_X[4] - 5) / 2.2, 18 / 2.2], srgb: true })}
-          normalMap={pbrTexture("/assets/facility/concrete-normal.webp", { repeat: [(STAGE_X[4] - 5) / 2.2, 18 / 2.2] })}
+          map={pbrTexture("/assets/facility/concrete-albedo.webp", { repeat: [(FLOOR_END + 8) / 2.2, 18 / 2.2], srgb: true })}
+          normalMap={pbrTexture("/assets/facility/concrete-normal.webp", { repeat: [(FLOOR_END + 8) / 2.2, 18 / 2.2] })}
           roughness={0.92}
         />
       </mesh>
 
       {/* One continuous material stream through every station: soil-brown until washing, clean afterwards */}
       <FlowLine
-        points={[[1.1, 0.03, 0.75], [STAGE_X[1] * 0.45, 0.03, 1.1], [STAGE_X[1] - 3.2, 0.03, 0.7], [STAGE_X[1] + 2.4, 0.03, 0.9], [STAGE_X[2] - 2.6, 0.03, 1.0], [STAGE_X[2], 0.03, 1.2]]}
+        points={[[1.1, 0.03, 0.75], [STAGE_X[1] * 0.4, 0.03, 1.1], [STAGE_X[1] - 3.2, 0.03, 0.7], [STAGE_X[1] + 2.4, 0.03, 0.9], [STAGE_X[2] - 2.6, 0.03, 1.0], [STAGE_X[2], 0.03, 1.2]]}
         color="#9a7550"
         radius={0.022}
         speed={0.12}
@@ -236,6 +254,12 @@ export default function TransformScene({ progress, quality }: { progress: Mutabl
         density={14}
         opacity={0.75}
       />
+
+      {/* Conveyor runs linking the stations: material is always moving in frame between stops */}
+      <Conveyor from={[1.45, 0.42, 0]} to={[STAGE_X[1] - 3.3, 0.22, 0]} width={0.2} speed={0.45} />
+      <Conveyor from={[STAGE_X[1] + 2.2, 0.2, 0.25]} to={[STAGE_X[2] - 1.15, 1.05, 0.05]} width={0.2} speed={0.45} />
+      <Conveyor from={[STAGE_X[2] + 1.2, 0.95, 0.05]} to={[STAGE_X[2] + 2.0, 0.55, 0.3]} width={0.16} speed={0.45} />
+      <Conveyor from={[STAGE_X[2] + 2.5, 0.2, 0.5]} to={[STAGE_X[3] - 2.6, 0.7, 1.2]} width={0.18} speed={0.45} />
 
       {/* ── Stage 1: Arrival ─────────────────────────────── */}
       <group position={[STAGE_X[0], 0, 0]}>
@@ -341,22 +365,23 @@ export default function TransformScene({ progress, quality }: { progress: Mutabl
 
       {/* ── Stage 5: New life ────────────────────────────── */}
       <group position={[STAGE_X[4], 0, 0]}>
-        <mesh rotation-x={-Math.PI / 2} position={[3, 0.0, 0]}>
+        <mesh rotation-x={-Math.PI / 2} position={[FLOOR_END - STAGE_X[4] + 8, 0.002, 0]}>
           <planeGeometry args={[18, 28]} />
-          <meshStandardMaterial color="#6f8c55" roughness={1} />
+          {/* Feathered edge: the grass grows out of the yard instead of meeting it in a hard line */}
+          <meshStandardMaterial color="#6f8c55" roughness={1} transparent alphaMap={grassFade} depthWrite={false} />
         </mesh>
         {/* road */}
-        <mesh rotation-x={-Math.PI / 2} rotation-z={0.25} position={[0, 0.01, 0.6]}>
-          <planeGeometry args={[16, 0.9]} />
+        <mesh rotation-x={-Math.PI / 2} rotation-z={0.25} position={[4, 0.01, 0.6]}>
+          <planeGeometry args={[14, 0.9]} />
           <meshStandardMaterial
             color="#7b7e7c"
-            map={pbrTexture("/assets/facility/asphalt-albedo.webp", { repeat: [18, 1], srgb: true })}
-            normalMap={pbrTexture("/assets/facility/asphalt-normal.webp", { repeat: [18, 1] })}
+            map={pbrTexture("/assets/facility/asphalt-albedo.webp", { repeat: [16, 1], srgb: true })}
+            normalMap={pbrTexture("/assets/facility/asphalt-normal.webp", { repeat: [16, 1] })}
             roughness={0.9}
           />
         </mesh>
-        <mesh rotation-x={-Math.PI / 2} rotation-z={0.25} position={[0, 0.015, 0.6]}>
-          <planeGeometry args={[16, 0.03]} />
+        <mesh rotation-x={-Math.PI / 2} rotation-z={0.25} position={[4, 0.015, 0.6]}>
+          <planeGeometry args={[14, 0.03]} />
           <meshStandardMaterial color="#e9e6d6" roughness={0.6} />
         </mesh>
         <House position={[1.6, 0, -1.4]} s={1.6} />

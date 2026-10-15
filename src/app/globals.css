@@ -59,14 +59,17 @@ body {
 }
 
 /* Visible, consistent focus everywhere */
-:focus-visible {
-  outline: 2px solid var(--color-lime);
-  outline-offset: 3px;
-  border-radius: 6px;
-}
-.on-light :focus-visible,
-.on-light:focus-visible {
-  outline-color: var(--color-forest);
+/* In the base layer so rounded-* utilities keep their shape on focus */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-lime);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+  .on-light :focus-visible,
+  .on-light:focus-visible {
+    outline-color: var(--color-forest);
+  }
 }
 
 .skip-link {

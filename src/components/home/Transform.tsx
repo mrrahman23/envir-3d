@@ -10,6 +10,7 @@ import SceneFrame from "@/components/three/SceneFrame";
 import { canRender3D, useQuality } from "@/lib/quality";
 import { STAGES, storyLight, storyPhase } from "@/lib/story";
 import { Eyebrow, TextLink } from "@/components/ui";
+import FilmBackdrop from "@/components/home/transform/FilmBackdrop";
 
 const TransformScene = dynamic(() => import("@/three/TransformScene"), { ssr: false });
 
@@ -27,19 +28,40 @@ export default function Transform() {
 
   return (
     <section id="transformasjon" aria-labelledby="transform-title" className="relative bg-night text-white">
-      <div className="mx-auto max-w-[1440px] px-4 pb-10 pt-24 sm:px-6 lg:px-10 lg:pt-32">
+      <Intro allowFilm={quality !== "pending" && quality !== "static" && !reducedMotion} />
+      {quality === "pending" ? <div className="h-[100svh]" /> : animated ? <ScrollStory /> : <StaticStory />}
+    </section>
+  );
+}
+
+/** Full-bleed strip with Envir's own background film behind the section heading. */
+function Intro({ allowFilm }: { allowFilm: boolean }) {
+  return (
+    <div className="relative isolate overflow-hidden">
+      <div className="absolute inset-x-0 top-0 h-[62svh] md:h-full">
+        <FilmBackdrop allowVideo={allowFilm} />
+        {/* Restrained grade: darken toward the copy and melt into the section below */}
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-[linear-gradient(180deg,rgba(7,24,26,0.55)_0%,rgba(7,24,26,0.1)_28%,rgba(7,24,26,0.45)_60%,#07181a_100%)] md:bg-[linear-gradient(180deg,rgba(7,24,26,0.6)_0%,rgba(7,24,26,0.05)_28%,rgba(7,24,26,0.45)_55%,rgba(7,24,26,0.8)_80%,#07181a_100%)]"
+        />
+        <div aria-hidden className="absolute inset-0 hidden bg-[linear-gradient(90deg,rgba(7,24,26,0.7)_0%,rgba(7,24,26,0.25)_45%,rgba(7,24,26,0)_70%)] md:block" />
+      </div>
+      <p className="absolute right-4 top-[calc(var(--nav-h,64px)+12px)] z-10 rounded-full bg-night/55 px-2.5 py-1 text-[0.62rem] uppercase tracking-[0.16em] text-white/80 backdrop-blur-sm sm:right-6 lg:right-10">
+        Film: Envir
+      </p>
+      <div className="relative mx-auto flex max-w-[1440px] flex-col justify-end px-4 pb-14 pt-[44svh] sm:px-6 md:min-h-[82svh] md:pb-20 md:pt-40 lg:px-10">
         <Eyebrow className="text-lime">Fra jord til ressurs</Eyebrow>
-        <div className="mt-6 grid gap-8 lg:grid-cols-[1.3fr_1fr] lg:items-end">
-          <h2 id="transform-title" className="display text-[clamp(2.4rem,5.5vw,5rem)] text-balance" data-reveal>
+        <div className="mt-6 grid gap-6 md:gap-8 lg:grid-cols-[1.3fr_1fr] lg:items-end">
+          <h2 id="transform-title" className="display text-[clamp(2.4rem,5.5vw,5rem)] text-balance [text-shadow:0_2px_24px_rgba(7,24,26,0.5)]" data-reveal>
             Slik får forurensede masser nytt liv.
           </h2>
-          <p className="max-w-lg text-lg leading-relaxed text-white/70" data-reveal data-reveal-delay="120">
+          <p className="max-w-lg text-lg leading-relaxed text-white/80 [text-shadow:0_1px_16px_rgba(7,24,26,0.6)]" data-reveal data-reveal-delay="120">
             Fem steg gjennom jordvaskeanlegget på Laksevåg – fra lastebilen tipper i skitten sone, til rene, CE-merkede fraksjoner går tilbake til bygg- og anleggsprosjekter.
           </p>
         </div>
       </div>
-      {quality === "pending" ? <div className="h-[100svh]" /> : animated ? <ScrollStory /> : <StaticStory />}
-    </section>
+    </div>
   );
 }
 

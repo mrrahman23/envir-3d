@@ -99,6 +99,11 @@ export default function Footer() {
             <Footer3DToggle />
           </div>
         </div>
+        <p className="mt-6 max-w-4xl text-xs leading-relaxed text-white/55">
+          Bildekilder: foto og film © Envir AS. Jordklode og Vestlandet: NASA Earth Observatory, Blue Marble. Bergen: inneholder modifiserte Copernicus Sentinel-data 2020.
+          Høydedata: © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA; all rights reserved.
+          Jord- og steinskann: Poly Haven (CC0).
+        </p>
       </div>
     </footer>
   );

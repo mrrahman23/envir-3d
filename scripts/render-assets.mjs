@@ -2,8 +2,6 @@
  * Renders the baked visual assets from the live 3D scenes of a running dev server:
  *
  *   public/assets/materials/renders/<fraction>.webp   product renders (transparent, 800×600)
- *   public/assets/posters/hero-desktop.webp           hero poster (settled frame, 1440×900)
- *   public/assets/posters/hero-mobile.webp            hero poster (390×844 @2x)
  *   public/assets/posters/facility.webp               facility model overview (16:10)
  *   public/assets/posters/transform.webp              scroll story opening frame
  *
@@ -46,8 +44,6 @@ if (!only || only === "posters") {
   mkdirSync(out("posters"), { recursive: true });
   // Reduced motion jumps scenes to their settled state: deterministic, no motion blur.
   const shots = [
-    { file: "hero-desktop", vp: { width: 1440, height: 900 }, dpr: 1, sel: "#hero-title", section: "section:first-of-type", rm: true, wait: 4000 },
-    { file: "hero-mobile", vp: { width: 390, height: 844 }, dpr: 2, sel: "#hero-title", section: "section:first-of-type", rm: true, wait: 4000 },
     { file: "facility", vp: { width: 1440, height: 900 }, dpr: 1, sel: "#anlegget", section: "#anlegget [role=img]", rm: true, wait: 4500, scroll: true, offset: 200 },
     { file: "transform", vp: { width: 1440, height: 900 }, dpr: 1, sel: "#transformasjon .sticky", section: "#transformasjon [role=img]", rm: false, wait: 5000, scroll: true, offset: 4, viewport: true },
   ];

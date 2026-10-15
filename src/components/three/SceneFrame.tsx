@@ -27,6 +27,11 @@ type Props = {
   className?: string;
   /** Mount immediately (hero) instead of when near the viewport. */
   eager?: boolean;
+  /**
+   * With `eager`: hold the WebGL boot (shader compiles, texture uploads) until the first
+   * scroll/touch/key, or this many ms after load — keeps phones responsive while the poster shows.
+   */
+  deferMs?: number;
   camera?: { fov?: number; position?: [number, number, number]; near?: number; far?: number };
   /** Accessible description of what the visualization shows. */
   label: string;
@@ -75,7 +80,7 @@ const idle = (cb: () => void): (() => void) => {
   };
 };
 
-export default function SceneFrame({ poster, children, className = "", eager, camera, label, background = "#07181a", interactive, shadows, transparent, alwaysRender }: Props) {
+export default function SceneFrame({ poster, children, className = "", eager, deferMs, camera, label, background = "#07181a", interactive, shadows, transparent, alwaysRender }: Props) {
   const { quality, reducedMotion } = useQuality();
   const wrap = useRef<HTMLDivElement>(null);
   const [near, setNear] = useState(false);
@@ -106,12 +111,28 @@ export default function SceneFrame({ poster, children, className = "", eager, ca
     let cancelEager = () => {};
     if (eager) {
       // Above the fold: let the page (text, poster, hydration) settle first, then start WebGL when idle.
-      const go = () => {
+      const boot = () => {
         cancelEager = idle(() => {
           if (cancelled) return;
           setNear(true);
           cancelEager = idle(() => !cancelled && setContent(true));
         });
+      };
+      const go = () => {
+        if (!deferMs) return boot();
+        const events = ["scroll", "pointerdown", "touchstart", "keydown", "wheel"] as const;
+        let timer = 0;
+        const start = () => {
+          window.clearTimeout(timer);
+          events.forEach((t) => window.removeEventListener(t, start));
+          if (!cancelled) boot();
+        };
+        events.forEach((t) => window.addEventListener(t, start, { passive: true, once: true }));
+        timer = window.setTimeout(start, deferMs);
+        cancelEager = () => {
+          window.clearTimeout(timer);
+          events.forEach((t) => window.removeEventListener(t, start));
+        };
       };
       if (document.readyState === "complete") go();
       else window.addEventListener("load", go, { once: true });
@@ -155,7 +176,7 @@ export default function SceneFrame({ poster, children, className = "", eager, ca
       mountIO.disconnect();
       visIO.disconnect();
     };
-  }, [eager]);
+  }, [eager, deferMs]);
 
   const onCompiled = useCallback(() => setCompiled(true), []);
   const show3D = canRender3D(quality) && near && !failed;
@@ -174,7 +195,8 @@ export default function SceneFrame({ poster, children, className = "", eager, ca
             <Canvas
               frameloop={frameloop}
               dpr={quality === "high" ? [1, 1.75] : quality === "medium" ? [1, 1.4] : [1, 1.15]}
-              shadows={shadows && quality === "high"}
+              // PCF ("percentage"): three r18x removed PCFSoftShadowMap (R3F's default for `true`) and warns.
+              shadows={shadows && quality === "high" ? "percentage" : false}
               gl={{ antialias: quality !== "low", powerPreference: "high-performance", alpha: !!transparent, stencil: false }}
               camera={{ fov: camera?.fov ?? 35, position: camera?.position ?? [0, 2, 10], near: camera?.near ?? 0.1, far: camera?.far ?? 200 }}
               onCreated={({ gl, scene }) => {

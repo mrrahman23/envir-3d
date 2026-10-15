@@ -15,17 +15,17 @@ Copy `.env.example` to `.env.local` and configure contact-form delivery before l
 
 ## Homepage experience
 
-| Section | What it does | Without 3D |
-| --- | --- | --- |
-| Hero | Floating earth cross-section (soil strata, roots, stone) with water and process streams; a facility grows out of the surface. Camera: extreme close-up → pull back → orbit → approach → settle with pointer parallax. | Official photo poster; headline never waits for WebGL |
-| Fra jord til ressurs | Scroll-driven 5-step sequence: intake → sorting (>90 mm crushed) → washing (sludge → filter press → landfill, process water recirculated) → fractions → back into use. Stepper jumps to any step. | Five steps with real Envir photos |
-| Alt under ett tak | Interactive *illustrative* facility model (6 zones). Hover, click or the keyboard list highlights a zone and moves the camera. "Statisk oversikt" toggle. | Schematic plan with the same zones |
-| Hva vi tilbyr (A–D) | Four vignettes: truck tipping at intake, fraction carousel (real prices and specs), wash-drum cutaway, lab bench. | Official photos |
-| Nøkkeltall | Published figures with count-up and small SVG visuals, labelled "not live readings". | Final values always in HTML |
-| Bærekraft | Circular material-flow loop with selectable stages, and NORSUS LCA results with method and PDF. | Static |
-| Om Envir · Nyheter · Kontakt | Parallax photo, quote, horizontal timeline, team. CMS news. Bright closing landscape with actions and the form. | — |
+Opens with real satellite data and a schematic soil cutaway, then Envir's own film, then the illustrative 3D process story and service vignettes.
 
-Every 3D surface is labelled "3D-illustrasjon", "Kunstnerisk visualisering" or "Illustrativ konseptmodell", and real photos are marked "Foto: Envir".
+| Section | What it does | Without WebGL / reduced motion |
+| --- | --- | --- |
+| Hero → Under overflaten | Pinned 380svh track. Intro (7 s): NASA Blue Marble globe → Western Norway (BMNG 500 m) → Bergen (Copernicus Sentinel-2 on Copernicus DEM, 1.45× relief). Scroll: descent to Laksevåg, dissolve into a schematic soil monolith (Poly Haven CC0 scans: turf, matjord with roots, sand, grus, mineralmasse, berggrunn) whose layers lift apart with labels; fully reversible. On phones the WebGL boot waits for the first scroll/touch (or 8 s) behind a poster that is the intro's first frame. | Rendered Bergen aerial still + an HTML strata figure built from the same scans; no pinning |
+| Fra jord til ressurs | Envir's official background film (Vimeo, lazy, muted) behind the heading, then a scroll-driven 3D sequence through five stations: intake → sorting (>90 mm crushed) → washing (sludge → filter press, process water recirculated) → fractions → back into use. Stations are linked by conveyor runs so the camera never crosses empty floor, and the crane move eases into every stop. Stepper jumps to any step. | Film poster + five steps with real Envir photos |
+| Alt under ett tak | Interactive *illustrative* facility model (6 zones). Hover, click or the keyboard list highlights a zone and moves the camera. "Statisk oversikt" toggle. | Schematic plan with the same zones |
+| Hva vi tilbyr (A–D) | Four 3D vignettes: truck tipping at intake, fraction carousel, wash-drum cutaway, lab bench. In the carousel the selected fraction lifts and stays in focus while the rest of the ring falls out of focus (depth of field), and the ring turns with the mouse. Real prices and specs. | Official photos |
+| Nøkkeltall · Bærekraft · Om Envir · Nyheter · Kontakt | Published figures, circular flow + NORSUS LCA, parallax photo, CMS news, closing landscape with actions and the form. | — |
+
+Labels are honest: satellite imagery carries its NASA/Copernicus credit as it appears, the cutaway is labelled "Skjematisk jordprofil – ikke i målestokk", the film is marked "Film: Envir", and every illustrative 3D scene is labelled "3D-illustrasjon", "Kunstnerisk visualisering" or "Illustrativ konseptmodell". Full attribution is in the footer and [ASSETS.md](ASSETS.md).
 
 ## Routes
 
@@ -46,21 +46,22 @@ With neither configured, the API returns `503 not_configured` and the user sees 
 
 ## 3D, performance and accessibility
 
-- **Quality tiers** (`src/lib/quality.tsx`): `high` / `medium` / `low` / `static`, from WebGL support, CPU cores, memory, viewport and Save-Data. Low tier means fewer particles and instances, lower DPR and no environment-map pass. Visitors can switch 3D off (mobile menu and footer).
+- **Quality tiers** (`src/lib/quality.tsx`): `high` / `medium` / `low` / `static`, from WebGL support, CPU cores, memory, viewport and Save-Data. Tiers pick texture sizes (4k/2k globe, 2k/1k Sentinel-2, 1k/512 scans, no normal maps on phones), terrain resolution and shadows. Visitors can switch 3D off (mobile menu and footer).
 - **`SceneFrame`** mounts a canvas only near the viewport, pauses it offscreen, unmounts it far away, compiles shaders with `compileAsync` before the first frame, and falls back to its poster on error or context loss. The hero waits for `requestIdleCallback` after load.
 - **Reduced motion:** no camera choreography or autorotation; the scroll sequence becomes a regular photo layout.
-- **Assets:** CC0 Poly Haven scans (soil/sand/gravel/rock textures, two meshopt-compressed stone GLBs, ~90 KB) plus baked posters and product renders. Every file, its source, licence and optimisation is listed in [ASSETS.md](ASSETS.md); regenerate with `node scripts/asset-manifest.mjs`.
+- **Assets:** NASA Blue Marble, Copernicus Sentinel-2 and Copernicus DEM (`scripts/fetch-geodata.mjs`, georeferencing in `public/assets/geo/geo.json`), CC0 Poly Haven geology scans (`scripts/fetch-geology.mjs`), the film poster in `public/assets/envir-hd/`. Textures decode off the main thread (ImageBitmap) and load in stages. Every file, its source, licence and optimisation is listed in [ASSETS.md](ASSETS.md); regenerate with `node scripts/asset-manifest.mjs`.
+- **Scroll measurement:** `ScrollRefresh` re-measures all ScrollTriggers when the document height changes (pinned sections above would otherwise shift every trigger below them).
 - **Labels in 3D** use `src/three/ScreenLabel.tsx` (plain DOM), not drei `<Html>`, which crashes on canvas teardown with React 19.
 - Landmarks, skip link, visible focus, keyboard-operable explorers (`aria-pressed`, `aria-live`), alt text, text contrast ≥ 4.5:1.
 
-**Lighthouse 12.8** (local production build, homepage, warm runs):
+**Lighthouse** (local production build, homepage, after the photoreal upgrade):
 
 | | Performance | Accessibility | Best practices | SEO |
 | --- | --- | --- | --- | --- |
-| `/` desktop | 100 | 100 | 100 | 100 |
-| `/` mobile (simulated 4G, 4× CPU) | 93–94 | 100 | 100 | 100 |
+| `/` desktop | 95 | 100 | 100 | 100 |
+| `/` mobile (simulated 4G, 4× CPU) | 91–93 | 100 | 100 | 100 |
 
-CLS is 0, mobile TBT 50–70 ms, mobile LCP ≈ 3.1 s. A first run against a cold server scored 76 (one 0.9 s script task); it didn't recur.
+CLS is 0; mobile TBT 180–280 ms, LCP ≈ 2.7 s; desktop LCP 0.7 s. Scrolling the hero and process story holds 60 fps (p95 frame 16.8 ms) on desktop and on a 4×-throttled phone emulation.
 
 ## Content provenance and open questions for Envir
 

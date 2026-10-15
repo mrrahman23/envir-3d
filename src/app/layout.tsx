@@ -3,6 +3,7 @@ import { Inter, Space_Grotesk } from "next/font/google";
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
 import RevealObserver from "@/components/RevealObserver";
+import ScrollRefresh from "@/components/ScrollRefresh";
 import { QualityProvider } from "@/lib/quality";
 import "./globals.css";
 
@@ -78,6 +79,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <Footer />
         </QualityProvider>
         <RevealObserver />
+        <ScrollRefresh />
       </body>
     </html>
   );
